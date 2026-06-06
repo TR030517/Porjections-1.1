@@ -1,0 +1,8 @@
+{
+  "name": "MassaJoy Admin",
+  "description": "A comprehensive backend management system for store, user, and order oversight.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
