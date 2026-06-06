@@ -13,12 +13,11 @@ import {
   X,
   AlertCircle
 } from 'lucide-react';
-import { useUserStore } from '../stores/user';
+import { useAuthStore, Role } from '../stores/authStore';
 import { useShopStore } from '../stores/shop';
-import { Role } from '../utils/roleEnum';
 
 export default function Header() {
-  const { currentRole, setCurrentRole, roleLabel } = useUserStore();
+  const { currentRole, setCurrentRole, roleLabel } = useAuthStore();
   const { currentStoreId, setCurrentStoreId, hasBranches, branchList } = useShopStore();
 
   // User details
@@ -176,72 +175,111 @@ export default function Header() {
         </div>
 
         {/* SHOP LOGICAL SELECTOR & TAG (EL-SELECT & EL-TAG REACT PORT) */}
-        {showShopSelector && (
-          <div className="flex items-center gap-2 pl-4 border-l border-gray-100 relative" ref={storeDropdownRef}>
+        {currentRole === Role.STORE_MANAGER ? (
+          <div className="flex items-center gap-2 pl-4 border-l border-gray-100">
             <span className="text-xs text-gray-400 font-medium">经营门店：</span>
-            
-            {/* Custom styled select selector mimicking el-select */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
-                style={{ borderRadius: '0px' }}
-                className="bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 text-xs text-gray-800 px-3 py-1.5 flex items-center gap-2 transition-all cursor-pointer font-sans font-medium rounded-none focus:outline-none focus:ring-1 focus:ring-[#48a1a1]/50"
-              >
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
                 <Store className="w-3.5 h-3.5 text-[#48a1a1]" />
-                <span>{currentSelectedShop.name}</span>
-                <ChevronDown className="w-3 h-3 text-gray-400" />
-              </button>
-
-              {/* Custom Dropdown Option Panel */}
-              {isStoreDropdownOpen && (
-                <div 
-                  style={{ borderRadius: '0px' }}
-                  className="absolute left-0 mt-1 w-72 bg-white border border-gray-200 shadow-xl z-50 rounded-none overflow-hidden max-h-64 overflow-y-auto"
-                >
-                  <p className="text-[10px] uppercase font-bold text-gray-400 px-3 py-2 bg-slate-50 border-b border-gray-100 tracking-wider">
-                    {currentRole === Role.STORE_MANAGER ? '🔒 独立连锁门店切换' : '🌐 全平台入驻门店巡查'}
-                  </p>
-                  
-                  {selectableShops.map((shop) => {
-                    const isSelected = shop.id === currentStoreId;
-                    return (
-                      <button
-                        key={shop.id}
-                        type="button"
-                        onClick={() => {
-                          setCurrentStoreId(shop.id);
-                          setIsStoreDropdownOpen(false);
-                        }}
-                        style={{ borderRadius: '0px' }}
-                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition-colors border-b border-gray-50 last:border-0 rounded-none cursor-pointer ${
-                          isSelected 
-                            ? 'bg-[#eef8f8] text-[#48a1a1] font-bold' 
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-3 h-3 shrink-0 opacity-75" />
-                          <span>{shop.name}</span>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5" />}
-                      </button>
-                    );
-                  })}
+                <span>Ariva Spa</span>
+              </span>
+              
+              {hasBranches && (
+                <div className="relative">
+                  <select
+                    value={currentStoreId || 3246}
+                    onChange={(e) => setCurrentStoreId(Number(e.target.value))}
+                    className="bg-gray-50 border border-gray-200 text-xs text-gray-750 px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#48a1a1]/50 font-sans font-semibold cursor-pointer"
+                    style={{ borderRadius: '0px' }}
+                  >
+                    <option value={3246}>旗舰总店</option>
+                    {branchList.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name.replace('Ariva Spa - ', '')}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
-            </div>
 
-            {/* BRAND BRANCH TAG (EL-TAG CUSTOM PORT) */}
-            {hasBranches && (
-              <span 
-                style={{ borderRadius: '0px' }}
-                className="bg-zinc-800 text-white font-mono text-[9px] font-bold tracking-widest px-2 py-1 select-none border border-zinc-700 rounded-none uppercase"
-              >
-                连锁
-              </span>
-            )}
+              {hasBranches && (
+                <span 
+                  style={{ borderRadius: '0px' }}
+                  className="bg-zinc-800 text-white font-mono text-[9px] font-bold tracking-widest px-2 py-1 select-none border border-zinc-700 rounded-none uppercase"
+                >
+                  连锁
+                </span>
+              )}
+            </div>
           </div>
+        ) : (
+          showShopSelector && (
+            <div className="flex items-center gap-2 pl-4 border-l border-gray-100 relative" ref={storeDropdownRef}>
+              <span className="text-xs text-gray-400 font-medium">经营门店：</span>
+              
+              {/* Custom styled select selector mimicking el-select */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsStoreDropdownOpen(!isStoreDropdownOpen)}
+                  style={{ borderRadius: '0px' }}
+                  className="bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 text-xs text-gray-800 px-3 py-1.5 flex items-center gap-2 transition-all cursor-pointer font-sans font-medium rounded-none focus:outline-none focus:ring-1 focus:ring-[#48a1a1]/50"
+                >
+                  <Store className="w-3.5 h-3.5 text-[#48a1a1]" />
+                  <span>{currentSelectedShop.name}</span>
+                  <ChevronDown className="w-3 h-3 text-gray-400" />
+                </button>
+
+                {/* Custom Dropdown Option Panel */}
+                {isStoreDropdownOpen && (
+                  <div 
+                    style={{ borderRadius: '0px' }}
+                    className="absolute left-0 mt-1 w-72 bg-white border border-gray-200 shadow-xl z-50 rounded-none overflow-hidden max-h-64 overflow-y-auto"
+                  >
+                    <p className="text-[10px] uppercase font-bold text-gray-400 px-3 py-2 bg-slate-50 border-b border-gray-100 tracking-wider">
+                      🌐 全平台入驻门店巡查
+                    </p>
+                    
+                    {selectableShops.map((shop) => {
+                      const isSelected = shop.id === currentStoreId;
+                      return (
+                        <button
+                          key={shop.id}
+                          type="button"
+                          onClick={() => {
+                            setCurrentStoreId(shop.id);
+                            setIsStoreDropdownOpen(false);
+                          }}
+                          style={{ borderRadius: '0px' }}
+                          className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition-colors border-b border-gray-50 last:border-0 rounded-none cursor-pointer ${
+                            isSelected 
+                              ? 'bg-[#eef8f8] text-[#48a1a1] font-bold' 
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-3 h-3 shrink-0 opacity-75" />
+                            <span>{shop.name}</span>
+                          </div>
+                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* BRAND BRANCH TAG (EL-TAG CUSTOM PORT) */}
+              {hasBranches && (
+                <span 
+                  style={{ borderRadius: '0px' }}
+                  className="bg-zinc-800 text-white font-mono text-[9px] font-bold tracking-widest px-2 py-1 select-none border border-zinc-700 rounded-none uppercase"
+                >
+                  连锁
+                </span>
+              )}
+            </div>
+          )
         )}
       </div>
 

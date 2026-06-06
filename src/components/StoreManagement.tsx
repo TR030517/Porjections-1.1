@@ -266,7 +266,16 @@ export default function StoreManagement() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [chartLoading, setChartLoading] = useState(false);
   const [currentBranch, setCurrentBranch] = useState<any>(null);
+  const [branches, setBranches] = useState<any[]>([]);
   const [activePointIdx, setActivePointIdx] = useState<number | null>(null);
+  const [cardToggles, setCardToggles] = useState<Record<string, boolean>>({
+    revenue: true,
+    orders: true,
+    techs: true,
+    rating: true,
+    views: true,
+    calls: true,
+  });
 
   useEffect(() => {
     if (activeEnterStore) {
@@ -292,8 +301,10 @@ export default function StoreManagement() {
           chartData: [35, 45, 70, 55, 90, 75, 80]
         }
       ];
+      setBranches(mockBranchList);
       setCurrentBranch(mockBranchList[0]);
     } else {
+      setBranches([]);
       setCurrentBranch(null);
     }
   }, [activeEnterStore]);
@@ -1867,195 +1878,355 @@ export default function StoreManagement() {
 
       {/* 2. Interactive Store Statistics Dialog (Possessed sandbox) */}
       {showStatsDialog && activeEnterStore && currentBranch && (
-        <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto font-sans text-gray-800">
-          <div className="bg-white border-2 border-slate-950 shadow-2xl w-full max-w-5xl flex flex-col box-sharp relative animate-in fade-in zoom-in duration-200" style={{ borderRadius: 0 }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto font-sans text-gray-800">
+          <div className="w-[95vw] h-[95vh] flex flex-col bg-gray-50 antialiased border border-gray-200 shadow-none relative animate-in fade-in zoom-in duration-200 rounded-none text-left" style={{ borderRadius: 0 }}>
             
-            {/* Top Session Control Ribbon */}
-            <div className="bg-[#1e293b] text-white px-6 py-3.5 flex items-center justify-between border-b border-slate-950" style={{ borderRadius: 0 }}>
-              <div className="flex items-center gap-2.5">
-                <span className="inline-block w-2.5 h-2.5 bg-emerald-500 animate-pulse" style={{ borderRadius: 0 }}></span>
-                <span className="text-xs font-black uppercase tracking-widest font-mono text-emerald-400">POSSESSED SESSION</span>
-                <span className="text-slate-500 font-mono">|</span>
-                <p className="text-[11px] font-semibold text-slate-300 line-clamp-1">
-                  管理员专线附身沙盒：当前正在以分店运营官角色监管该实体的全部财务、客户流量与折线记录。
-                </p>
+            {/* 1. 轻量化状态警告栏 */}
+            <div className="bg-blue-50 border-b border-blue-200 text-blue-800 px-4 py-2 text-sm flex items-center justify-between shrink-0 rounded-none shadow-none animate-in fade-in slide-in-from-top-1 duration-200" style={{ borderRadius: 0 }}>
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2 bg-blue-500 animate-pulse" style={{ borderRadius: 0 }}></span>
+                <span className="font-semibold text-xs sm:text-sm">当前处于：商家附身沙盒模式 (Simulator)</span>
               </div>
-              
-              <div className="flex items-center gap-4 text-xs font-bold shrink-0">
-                <div className="flex items-center gap-1 bg-slate-800 border border-slate-700 px-3 py-1 text-slate-200 uppercase font-mono tracking-wider" style={{ borderRadius: 0 }}>
+              <button 
+                type="button"
+                onClick={() => {
+                  setShowStatsDialog(false);
+                  setActiveEnterStore(null);
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-1 rounded-none shadow-none border-0 cursor-pointer transition-colors"
+                style={{ borderRadius: 0 }}
+              >
+                退出沙盒
+              </button>
+            </div>
+
+            {/* 2. 主 Header 区域 */}
+            <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shrink-0 rounded-none shadow-none" style={{ borderRadius: 0 }}>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-2xl font-bold text-gray-900 leading-none">{activeEnterStore.name}</h2>
+                {(() => {
+                  const hasBranches = branches && branches.length > 0;
+                  return hasBranches && (
+                    <select
+                      value={currentBranch?.id}
+                      onChange={(e) => {
+                        const selectedId = Number(e.target.value);
+                        const bItem = branches.find(b => b.id === selectedId);
+                        if (bItem) {
+                          setChartLoading(true);
+                          setTimeout(() => {
+                            setCurrentBranch(bItem);
+                            setChartLoading(false);
+                          }, 300);
+                        }
+                      }}
+                      className="border border-gray-300 px-3 py-1 bg-gray-50 text-sm rounded-none outline-none focus:border-blue-500 font-medium text-gray-700 cursor-pointer select-none"
+                      style={{ borderRadius: 0 }}
+                    >
+                      {branches.map(b => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} ({b.code})
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
+              </div>
+
+              <div className="flex items-center gap-3 text-xs font-bold text-gray-500">
+                <div className="flex items-center gap-1 bg-slate-50 border border-gray-200 px-3 py-1 text-slate-600 uppercase font-mono tracking-wider rounded-none shadow-none" style={{ borderRadius: 0 }}>
                   <span>STORE-ID:</span>
-                  <span className="text-emerald-400 font-black">{activeEnterStore.id}</span>
+                  <span className="text-[#48a1a1] font-black">{activeEnterStore.id}</span>
                 </div>
-                
-                <div className="flex items-center gap-2 bg-[#48a1a1]/15 border border-[#48a1a1]/35 pl-3.5 pr-3 py-1 text-emerald-300 relative" style={{ borderRadius: 0 }}>
-                  <span className="select-none text-[11px] font-extrabold">欢迎回来, {activeEnterStore.name}</span>
+                <div className="bg-[#48a1a1]/10 text-slate-700 px-3 py-1 border border-gray-200 text-[11px] font-extrabold rounded-none shadow-none" style={{ borderRadius: 0 }}>
+                  <span className="text-[#48a1a1]">欢迎回来, {activeEnterStore.name}</span>
                 </div>
               </div>
             </div>
 
             {/* Main Statistics Body Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 border-b border-slate-200">
-              
-              {/* Left Side: interactive Chart */}
-              <div className="lg:col-span-8 p-6 space-y-4 border-r border-slate-200 relative">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Operational Metrics Curve</h4>
-                    <h3 className="text-sm font-extrabold text-slate-800 text-left">
-                      分店 7 日滚动营业实收折线图 (ECharts Engine Simulator)
-                    </h3>
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50 text-left">
+              <div className="grid grid-cols-12 gap-6">
+                
+                {/* Left Side: interactive Chart */}
+                <div className="col-span-12 lg:col-span-8 bg-white border border-gray-200 p-6 rounded-none flex flex-col shadow-none">
+                  <div className="flex items-center justify-between mb-4">
+                     <div className="space-y-0.5">
+                       <h3 className="text-lg font-bold text-gray-900">7日营业实收趋势</h3>
+                       <p className="text-xs text-gray-400">分店 7 日滚动营业实收折线图 (ECharts Engine Simulator)</p>
+                     </div>
+                    
+                    <div className="flex items-center gap-3 text-[10px] font-bold text-gray-500 shrink-0">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2.5 h-1 bg-[#48a1a1]" style={{ borderRadius: 0 }}></span> 
+                        营业收入 (USD)
+                      </span>
+                      <span className="font-mono bg-slate-50 border border-gray-200 px-2 py-0.5 uppercase select-none rounded-none shadow-none" style={{ borderRadius: 0 }}>
+                        Last 7 Days
+                      </span>
+                    </div>
                   </div>
+
+                  {/* SVG Graph */}
+                  <div className="h-[500px] border border-gray-200 p-4 relative bg-slate-50/50 flex items-center justify-center rounded-none shadow-none" style={{ borderRadius: 0 }}>
+                    {chartLoading ? (
+                      <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center gap-3 rounded-none shadow-none">
+                        <div className="w-8 h-8 border-2 border-t-transparent border-[#48a1a1] animate-spin" style={{ borderRadius: 0 }}></div>
+                        <span className="text-[10px] font-bold text-[#48a1a1] uppercase tracking-wider font-mono">Reloading branch data streams...</span>
+                      </div>
+                    ) : (
+                      <svg className="w-full h-full animate-in fade-in duration-300" viewBox="0 0 540 240">
+                        <line x1="40" y1="40" x2="520" y2="40" stroke="#f1f5f9" strokeWidth="1.5" />
+                        <line x1="40" y1="100" x2="520" y2="100" stroke="#f1f5f9" strokeWidth="1.5" />
+                        <line x1="40" y1="160" x2="520" y2="160" stroke="#f1f5f9" strokeWidth="1.5" />
+                        <line x1="40" y1="220" x2="520" y2="220" stroke="#cbd5e1" strokeWidth="1" />
+                        <line x1="40" y1="40" x2="40" y2="220" stroke="#cbd5e1" strokeWidth="1" />
+
+                        <text x="32" y="44" className="text-[9px] fill-gray-400 font-mono font-bold text-right font-semibold" textAnchor="end">150 %</text>
+                        <text x="32" y="104" className="text-[9px] fill-gray-400 font-mono font-bold text-right font-semibold" textAnchor="end">100 %</text>
+                        <text x="32" y="164" className="text-[9px] fill-gray-400 font-mono font-bold text-right font-semibold" textAnchor="end">50 %</text>
+                        <text x="32" y="224" className="text-[9px] fill-gray-400 font-mono font-bold text-right font-semibold" textAnchor="end">0</text>
+
+                        <defs>
+                          <linearGradient id="reactChartGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#48a1a1" stopOpacity="0.32" />
+                            <stop offset="100%" stopColor="#48a1a1" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+                        
+                        <path d={getGradientPath(currentBranch.chartData)} fill="url(#reactChartGrad)" />
+                        <path d={getCurvePath(currentBranch.chartData)} fill="none" stroke="#48a1a1" strokeWidth="2.5" />
+
+                        {getChartPoints(currentBranch.chartData).map((val, idx) => (
+                          <g key={idx}>
+                            <circle 
+                              cx={val.x} 
+                              cy={val.y} 
+                              r="4" 
+                              fill="#ffffff" 
+                              stroke="#48a1a1" 
+                              strokeWidth="2.5" 
+                              className="cursor-pointer transition-all duration-150 hover:r-6"
+                              onMouseEnter={() => setActivePointIdx(idx)}
+                              onMouseLeave={() => setActivePointIdx(null)}
+                            />
+                            {activePointIdx === idx && (
+                              <text 
+                                x={val.x} 
+                                y={val.y - 10} 
+                                className="text-[9px] font-bold fill-slate-900 font-mono" 
+                                textAnchor="middle"
+                              >
+                                {val.value}%
+                              </text>
+                            )}
+                          </g>
+                        ))}
+
+                        {['5/30', '5/31', '6/01', '6/02', '6/03', '6/04', '今日'].map((day, idx) => (
+                          <text 
+                            key={idx}
+                            x={40 + idx * 80} 
+                            y={235} 
+                            className="text-[9px] fill-gray-500 font-mono font-bold" 
+                            textAnchor="middle"
+                          >
+                            {day}
+                          </text>
+                        ))}
+                      </svg>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-slate-50 border border-gray-200 p-3 text-[11px] font-medium text-slate-600 text-left rounded-none shadow-none mt-4" style={{ borderRadius: 0 }}>
+                    <span className="text-teal-600 shrink-0 font-bold">💡 分析研判:</span>
+                    <span>由于本统计区间内的理疗热度呈季节性攀升，{currentBranch.name} 的主轴业务正趋于全负荷状态。建议协调理疗师休假，避免承接负荷失序导致口碑下滑。</span>
+                  </div>
+                </div>
+
+                {/* Right Side: stats summary cards */}
+                <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
                   
-                  <div className="flex items-center gap-3 text-[10px] font-bold text-gray-500 shrink-0">
-                    <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-1 bg-[#48a1a1]" style={{ borderRadius: 0 }}></span> 
-                      营业收入 (USD)
-                    </span>
-                    <span className="font-mono bg-slate-50 border border-slate-200 px-2 py-0.5 uppercase select-none" style={{ borderRadius: 0 }}>
-                      Last 7 Days
-                    </span>
-                  </div>
-                </div>
-
-                {/* SVG Graph */}
-                <div className="h-64 border border-slate-200 p-2 relative bg-slate-50/50 flex items-center justify-center" style={{ borderRadius: 0 }}>
-                  {chartLoading ? (
-                    <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center gap-3">
-                      <div className="w-8 h-8 border-2 border-t-transparent border-[#48a1a1] animate-spin" style={{ borderRadius: 0 }}></div>
-                      <span className="text-[10px] font-bold text-[#48a1a1] uppercase tracking-wider font-mono">Reloading branch data streams...</span>
+                  {/* Card 1: 今日营业收入 */}
+                  <div className="bg-white border border-gray-200 p-5 rounded-none shadow-none relative flex flex-col justify-between animate-in fade-in duration-200" style={{ borderRadius: 0 }}>
+                    <div className="flex items-start justify-between">
+                      <span className="text-gray-500 text-sm font-semibold">今日营业收入 (USD)</span>
+                      <button
+                        type="button"
+                        onClick={() => setCardToggles(prev => ({ ...prev, revenue: !prev.revenue }))}
+                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer border transition-colors duration-200 ease-in-out items-center p-[2px] rounded-none outline-none ${
+                          cardToggles.revenue ? 'bg-blue-600 border-blue-600' : 'bg-gray-200 border-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-4.5 bg-white transition-transform duration-200 ease-in-out rounded-none shadow-none ${
+                            cardToggles.revenue ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
                     </div>
-                  ) : (
-                    <svg className="w-full h-full animate-in fade-in duration-300" viewBox="0 0 540 240">
-                      <line x1="40" y1="40" x2="520" y2="40" stroke="#f1f5f9" strokeWidth="1.5" />
-                      <line x1="40" y1="100" x2="520" y2="100" stroke="#f1f5f9" strokeWidth="1.5" />
-                      <line x1="40" y1="160" x2="520" y2="160" stroke="#f1f5f9" strokeWidth="1.5" />
-                      <line x1="40" y1="220" x2="520" y2="220" stroke="#cbd5e1" strokeWidth="1" />
-                      <line x1="40" y1="40" x2="40" y2="220" stroke="#cbd5e1" strokeWidth="1" />
-
-                      <text x="32" y="44" className="text-[9px] fill-gray-400 font-mono font-bold text-right font-semibold" textAnchor="end">150 %</text>
-                      <text x="32" y="104" className="text-[9px] fill-gray-400 font-mono font-bold text-right font-semibold" textAnchor="end">100 %</text>
-                      <text x="32" y="164" className="text-[9px] fill-gray-400 font-mono font-bold text-right font-semibold" textAnchor="end">50 %</text>
-                      <text x="32" y="224" className="text-[9px] fill-gray-400 font-mono font-bold text-right font-semibold" textAnchor="end">0</text>
-
-                      <defs>
-                        <linearGradient id="reactChartGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#48a1a1" stopOpacity="0.32" />
-                          <stop offset="100%" stopColor="#48a1a1" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      
-                      <path d={getGradientPath(currentBranch.chartData)} fill="url(#reactChartGrad)" />
-                      <path d={getCurvePath(currentBranch.chartData)} fill="none" stroke="#48a1a1" strokeWidth="2.5" />
-
-                      {getChartPoints(currentBranch.chartData).map((val, idx) => (
-                        <g key={idx}>
-                          <circle 
-                            cx={val.x} 
-                            cy={val.y} 
-                            r="4" 
-                            fill="#ffffff" 
-                            stroke="#48a1a1" 
-                            strokeWidth="2.5" 
-                            className="cursor-pointer transition-all duration-150 hover:r-6"
-                            onMouseEnter={() => setActivePointIdx(idx)}
-                            onMouseLeave={() => setActivePointIdx(null)}
-                          />
-                          {activePointIdx === idx && (
-                            <text 
-                              x={val.x} 
-                              y={val.y - 10} 
-                              className="text-[9px] font-bold fill-slate-900 font-mono" 
-                              textAnchor="middle"
-                            >
-                              {val.value}%
-                            </text>
-                          )}
-                        </g>
-                      ))}
-
-                      {['5/30', '5/31', '6/01', '6/02', '6/03', '6/04', '今日'].map((day, idx) => (
-                        <text 
-                          key={idx}
-                          x={40 + idx * 80} 
-                          y={235} 
-                          className="text-[9px] fill-gray-500 font-mono font-bold" 
-                          textAnchor="middle"
-                        >
-                          {day}
-                        </text>
-                      ))}
-                    </svg>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-3 text-[11px] font-medium text-slate-600 text-left" style={{ borderRadius: 0 }}>
-                  <span className="text-teal-600 shrink-0 font-bold">💡 分析研判:</span>
-                  <span>由于本统计区间内的理疗热度呈季节性攀升，{currentBranch.name} 的主轴业务正趋于全负荷状态。建议协调理疗师休假，避免承接负荷失序导致口碑下滑。</span>
-                </div>
-              </div>
-
-              {/* Right Side: stats summary cards */}
-              <div className="lg:col-span-4 p-6 bg-slate-50/50 space-y-4">
-                <div className="border-b border-slate-200 pb-2 text-left">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Performance Key indicators</h4>
-                  <h3 className="text-sm font-black text-slate-900">核心维度实况概览</h3>
-                </div>
-
-                <div className="space-y-4 text-left">
-                  {/* Revenue */}
-                  <div className="bg-white border-2 border-slate-900 p-4 flex flex-col space-y-1" style={{ borderRadius: 0 }}>
-                    <span className="text-[10px] font-black text-[#48a1a1] uppercase tracking-wider font-mono">今日营业收入 (USD)</span>
-                    <div className="flex items-baseline gap-1 pt-1">
-                      <span className="text-xs text-slate-400 font-bold font-sans">$</span>
-                      <span className="text-xl font-black text-slate-900 font-mono select-all">{currentBranch.revenue}</span>
+                    <div className="mt-4 flex items-baseline gap-1">
+                      <span className="text-xl text-gray-400 font-bold font-sans">$</span>
+                      <span className="text-3xl font-bold text-gray-900 font-mono select-all">
+                        {cardToggles.revenue ? currentBranch.revenue : '---'}
+                      </span>
                     </div>
-                    <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1 select-none">
+                    <div className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1 select-none">
                       <span className="text-emerald-500 font-bold">↑ +14.2%</span>相比于昨日同一节点
                     </div>
                   </div>
 
-                  {/* Orders */}
-                  <div className="bg-white border-2 border-slate-900 p-4 flex flex-col space-y-1" style={{ borderRadius: 0 }}>
-                    <span className="text-[10px] font-black text-[#48a1a1] uppercase tracking-wider font-mono">今日履约单量 (Today Appointments)</span>
-                    <div className="flex items-baseline gap-1 pt-1">
-                      <span className="text-xl font-black text-slate-900 font-mono select-all">{currentBranch.orders}</span>
-                      <span className="text-xs text-slate-400 font-bold">单</span>
+                  {/* Card 2: 今日履约单量 */}
+                  <div className="bg-white border border-gray-200 p-5 rounded-none shadow-none relative flex flex-col justify-between animate-in fade-in duration-200" style={{ borderRadius: 0 }}>
+                    <div className="flex items-start justify-between">
+                      <span className="text-gray-500 text-sm font-semibold">今日履约单量 (Today Appointments)</span>
+                      <button
+                        type="button"
+                        onClick={() => setCardToggles(prev => ({ ...prev, orders: !prev.orders }))}
+                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer border transition-colors duration-200 ease-in-out items-center p-[2px] rounded-none outline-none ${
+                          cardToggles.orders ? 'bg-blue-600 border-blue-600' : 'bg-gray-200 border-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-4.5 bg-white transition-transform duration-200 ease-in-out rounded-none shadow-none ${
+                            cardToggles.orders ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
                     </div>
-                    <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1 select-none">
+                    <div className="mt-4 flex items-baseline gap-1">
+                      <span className="text-3xl font-bold text-gray-900 font-mono select-all">
+                        {cardToggles.orders ? currentBranch.orders : '---'}
+                      </span>
+                      <span className="text-xs text-gray-400 font-bold ml-1">单</span>
+                    </div>
+                    <div className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1 select-none">
                       <span className="text-emerald-500 font-bold">● 100% 接单率</span> 零延误履约中
                     </div>
                   </div>
 
-                  {/* Techs */}
-                  <div className="bg-white border-2 border-slate-900 p-4 flex flex-col space-y-1" style={{ borderRadius: 0 }}>
-                    <span className="text-[10px] font-black text-[#48a1a1] uppercase tracking-wider font-mono">今日在岗技师 (Active Specialists)</span>
-                    <div className="flex items-baseline gap-1 pt-1">
-                      <span className="text-xl font-black text-slate-900 font-mono select-all">{currentBranch.techs}</span>
-                      <span className="text-xs text-slate-400 font-bold">位理疗师</span>
+                  {/* Card 3: 渠道访问次数 */}
+                  <div className="bg-white border border-gray-200 p-5 rounded-none shadow-none relative flex flex-col justify-between animate-in fade-in duration-200" style={{ borderRadius: 0 }}>
+                    <div className="flex items-start justify-between">
+                      <span className="text-gray-500 text-sm font-semibold">渠道点击访问次数</span>
+                      <button
+                        type="button"
+                        onClick={() => setCardToggles(prev => ({ ...prev, views: !prev.views }))}
+                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer border transition-colors duration-200 ease-in-out items-center p-[2px] rounded-none outline-none ${
+                          cardToggles.views ? 'bg-blue-600 border-blue-600' : 'bg-gray-200 border-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-4.5 bg-white transition-transform duration-200 ease-in-out rounded-none shadow-none ${
+                            cardToggles.views ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
                     </div>
-                    <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1 select-none">
+                    <div className="mt-4 flex items-baseline gap-1">
+                      <span className="text-3xl font-bold text-gray-900 font-mono select-all">
+                        {cardToggles.views ? (currentBranch.orders * 58 + 24) : '---'}
+                      </span>
+                      <span className="text-xs text-gray-400 font-bold ml-1">次</span>
+                    </div>
+                    <div className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1 select-none">
+                      <span className="text-blue-500 font-bold">● 实时热度</span> 主页及预约页浏览
+                    </div>
+                  </div>
+
+                  {/* Card 4: 电话服务 */}
+                  <div className="bg-white border border-gray-200 p-5 rounded-none shadow-none relative flex flex-col justify-between animate-in fade-in duration-200" style={{ borderRadius: 0 }}>
+                    <div className="flex items-start justify-between">
+                      <span className="text-gray-500 text-sm font-semibold">理疗预约电话量</span>
+                      <button
+                        type="button"
+                        onClick={() => setCardToggles(prev => ({ ...prev, calls: !prev.calls }))}
+                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer border transition-colors duration-200 ease-in-out items-center p-[2px] rounded-none outline-none ${
+                          cardToggles.calls ? 'bg-blue-600 border-blue-600' : 'bg-gray-200 border-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-4.5 bg-white transition-transform duration-200 ease-in-out rounded-none shadow-none ${
+                            cardToggles.calls ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="mt-4 flex items-baseline gap-1">
+                      <span className="text-3xl font-bold text-gray-900 font-mono select-all">
+                        {cardToggles.calls ? (currentBranch.orders * 2 + 3) : '---'}
+                      </span>
+                      <span className="text-xs text-gray-400 font-bold ml-1">通</span>
+                    </div>
+                    <div className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1 select-none">
+                      <span className="text-blue-500 font-bold">● 转化率 18%</span> 线上咨询及来电
+                    </div>
+                  </div>
+
+                  {/* Card 5: 今日在岗技师 */}
+                  <div className="bg-white border border-gray-200 p-5 rounded-none shadow-none relative flex flex-col justify-between animate-in fade-in duration-200" style={{ borderRadius: 0 }}>
+                    <div className="flex items-start justify-between">
+                      <span className="text-gray-500 text-sm font-semibold">今日在岗技师 (Active Specialists)</span>
+                      <button
+                        type="button"
+                        onClick={() => setCardToggles(prev => ({ ...prev, techs: !prev.techs }))}
+                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer border transition-colors duration-200 ease-in-out items-center p-[2px] rounded-none outline-none ${
+                          cardToggles.techs ? 'bg-blue-600 border-blue-600' : 'bg-gray-200 border-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-4.5 bg-white transition-transform duration-200 ease-in-out rounded-none shadow-none ${
+                            cardToggles.techs ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="mt-4 flex items-baseline gap-1">
+                      <span className="text-3xl font-bold text-gray-900 font-mono select-all">
+                        {cardToggles.techs ? currentBranch.techs : '---'}
+                      </span>
+                      <span className="text-xs text-gray-400 font-bold ml-1">位</span>
+                    </div>
+                    <div className="text-[10px] text-gray-400 font-semibold mt-1 flex items-center gap-1 select-none">
                       <span className="inline-block w-2 bg-emerald-500 mx-0.5" style={{ width: '8px', height: '8px', borderRadius: 0 }}></span> 均已在班、轮换休息状态
                     </div>
                   </div>
 
-                  {/* Score */}
-                  <div className="bg-white border-2 border-slate-900 p-4 flex flex-col space-y-1" style={{ borderRadius: 0 }}>
-                    <span className="text-[10px] font-black text-[#48a1a1] uppercase tracking-wider font-mono">顾客综合评分星级</span>
-                    <div className="flex items-center gap-2 pt-1">
-                      <span className="text-xl font-black text-amber-500 font-mono select-all">★ {currentBranch.rating}</span>
-                      <span className="text-xs text-slate-400 font-bold">分</span>
+                  {/* Card 6: 顾客综合评分星级 */}
+                  <div className="bg-white border border-gray-200 p-5 rounded-none shadow-none relative flex flex-col justify-between animate-in fade-in duration-200" style={{ borderRadius: 0 }}>
+                    <div className="flex items-start justify-between">
+                      <span className="text-gray-500 text-sm font-semibold">顾客体验评分</span>
+                      <button
+                        type="button"
+                        onClick={() => setCardToggles(prev => ({ ...prev, rating: !prev.rating }))}
+                        className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer border transition-colors duration-200 ease-in-out items-center p-[2px] rounded-none outline-none ${
+                          cardToggles.rating ? 'bg-blue-600 border-blue-600' : 'bg-gray-200 border-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-4.5 bg-white transition-transform duration-200 ease-in-out rounded-none shadow-none ${
+                            cardToggles.rating ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
                     </div>
-                    <div className="text-[10px] text-[#48a1a1] font-bold flex items-center gap-1 select-none">
+                    <div className="mt-4 flex items-center gap-2">
+                      <span className="text-3xl font-bold text-amber-500 font-mono select-all">
+                        {cardToggles.rating ? `★ ${currentBranch.rating}` : '---'}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-[#48a1a1] font-bold mt-1 flex items-center gap-1 select-none">
                       根据近 60 天的 2,400+ 好评反馈自动测算
                     </div>
                   </div>
+
                 </div>
               </div>
 
             </div>
 
             {/* Footer */}
-            <div className="bg-slate-50 px-6 py-4 flex items-center justify-between" style={{ borderRadius: 0 }}>
+            <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-t border-gray-200 shrink-0 rounded-none shadow-none" style={{ borderRadius: 0 }}>
               <div className="flex items-center gap-2 text-[11px] text-slate-500 font-semibold">
                 <span>当前分店环境：</span>
                 <span className="text-[#48a1a1] font-mono font-bold">[{currentBranch.code}] / {currentBranch.name}</span>
@@ -2068,7 +2239,7 @@ export default function StoreManagement() {
                     setShowStatsDialog(false);
                     setActiveEnterStore(null);
                   }}
-                  className="text-xs font-black border-2 border-slate-900 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-600 text-slate-900 px-6 py-2.5 transition-all cursor-pointer"
+                  className="text-xs font-black border border-gray-200 bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 text-slate-800 px-6 py-2.5 transition-all cursor-pointer rounded-none shadow-none"
                   style={{ borderRadius: 0 }}
                 >
                   退出附身管理员模式

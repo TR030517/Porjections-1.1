@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { ViewId, NavItem } from '../types';
 import { cn } from '../lib/utils';
-import { useUserStore } from '../stores/user';
+import { useAuthStore, Role } from '../stores/authStore';
 import { canAccessView } from '../permission';
 
 const navItems: NavItem[] = [
@@ -79,7 +79,7 @@ interface SidebarProps {
 
 export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  const { currentRole } = useUserStore();
+  const { currentRole } = useAuthStore();
 
   const toggleExpand = (label: string) => {
     setExpandedItems(prev => 
@@ -88,14 +88,26 @@ export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
   };
 
   // Filter items in real-time according to RBAC roles
-  const allowedNavItems = navItems.filter(item => {
-    if (item.children) {
-      // If there are subpages, check if at least one subpage is accessible
-      const visibleChildren = item.children.filter(child => canAccessView(currentRole, child.id));
-      return visibleChildren.length > 0;
-    }
-    return canAccessView(currentRole, item.id);
-  });
+  const allowedNavItems = navItems
+    .map(item => {
+      // If store manager, update dashboard label to '门店 Dashboard'
+      if (currentRole === Role.STORE_MANAGER && item.id === 'dashboard') {
+        return { ...item, label: '门店 Dashboard' };
+      }
+      return item;
+    })
+    .filter(item => {
+      if (currentRole === Role.STORE_MANAGER) {
+        // STORE_MANAGER is restricted to ONLY dashboard, coupon-management, and service-orders
+        return ['dashboard', 'coupon-management', 'service-orders'].includes(item.id);
+      }
+      if (item.children) {
+        // If there are subpages, check if at least one subpage is accessible
+        const visibleChildren = item.children.filter(child => canAccessView(currentRole, child.id));
+        return visibleChildren.length > 0;
+      }
+      return canAccessView(currentRole, item.id);
+    });
 
   return (
     <div className="w-60 bg-white border-right border-gray-100 flex flex-col h-screen fixed left-0 top-0 z-20 overflow-y-auto">
