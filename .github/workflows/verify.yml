@@ -58,7 +58,10 @@ jobs:
           NOTIFICATION_WORKER_ENABLED: "false"
           ORDER_EMAIL_ENABLED: "false"
         run: node --test --test-concurrency=1 test/management-password.integration.cjs test/management-password-cookie.integration.cjs
-      - run: npm run release:check
+      - name: Build production release artifacts and typecheck
+        env:
+          NODE_ENV: production
+        run: npm run release:check
       - name: Enforce frontend artifact size and deferred-route budgets
         run: node scripts/check-frontend-bundles.mjs --report .local/ci-bundle-results/frontend-bundles.json
       - uses: actions/upload-artifact@v4
