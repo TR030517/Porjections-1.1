@@ -52,6 +52,9 @@ async function directory(initial: ResourceQuery) {
     if (url.pathname.endsWith('/auth/me')) return Response.json(identity);
     if (options?.method && options.method !== 'GET') writes++;
     assert.equal(url.pathname, '/api/v1/studio/stores'); queries.push(url.searchParams);
+    if (url.searchParams.get('search') === 'https://other.example.invalid/s/synthetic-store') {
+      return Response.json({ message: '请粘贴 Massajoy 门店网址，或输入门店名称或短链。' }, { status: 400 });
+    }
     return Response.json({ items: [{ id: '5', ownerId: '9', name: 'Synthetic store', shortName: 'synthetic-store', status: 'APPROVED' }], total: 320,
       page: Number(url.searchParams.get('page')), pageSize: Number(url.searchParams.get('pageSize')) });
   };
@@ -124,6 +127,22 @@ test('store directory identity replacement discards previous private filters and
     assert.equal(h.queries.at(-1)?.get('search'), null); assert.equal(h.queries.at(-1)?.get('status'), null);
     assert.equal(h.queries.at(-1)?.get('page'), '1'); assert.equal(h.queries.at(-1)?.get('pageSize'), '25');
     assert.equal(h.query().search, undefined); assert.equal(h.query().status, undefined);
+    assert.equal(h.writes(), 0);
+  } finally { await h.cleanup(); }
+});
+
+test('invalid storefront URL shows the correction and accepts a new search without reloading', async () => {
+  const h = await directory({ search: 'https://other.example.invalid/s/synthetic-store' });
+  try {
+    const alert = h.control(node => node.props.role === 'alert');
+    assert.equal(text(alert), '请粘贴 Massajoy 门店网址，或输入门店名称或短链。');
+    assert.doesNotMatch(text(h.tree()), /门店未能加载|请重新加载后再试|没有匹配的门店/);
+    const input = h.control(node => node.type === 'input' && node.props.type === 'search');
+    await act(async () => { input.props.onChange({ target: { value: '/s/synthetic-store' } }); });
+    await act(async () => { h.control(node => node.type === 'form').props.onSubmit({ preventDefault() {} }); });
+    assert.equal(h.queries.at(-1)?.get('search'), '/s/synthetic-store');
+    assert.equal(find(h.tree(), node => node.props.role === 'alert'), undefined);
+    assert.match(text(h.tree()), /共 320 家门店/);
     assert.equal(h.writes(), 0);
   } finally { await h.cleanup(); }
 });
