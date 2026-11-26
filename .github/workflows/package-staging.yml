@@ -1,0 +1,40 @@
+name: Package the Massajoy 2.0 staging images
+on:
+  push:
+    branches: [release-candidate/2026-11-26-staging-images]
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RELEASE_SOURCE: c6298a37e8fd186b72ce3edd90654e6b3e731f26
+      RELEASE_TAG: 2.0.0-staging.c6298a37
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c6298a37e8fd186b72ce3edd90654e6b3e731f26
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify the source and build the API and Web images
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SOURCE"
+          node scripts/check-release-source.mjs --report .local/staging-source/source.json
+          mkdir -p "$RUNNER_TEMP/staging-images"
+          docker build --file deploy/Dockerfile.api --iidfile "$RUNNER_TEMP/staging-images/api.iid" --tag "massajoy2-api:$RELEASE_TAG" .
+          docker build --file deploy/Dockerfile.web --iidfile "$RUNNER_TEMP/staging-images/web.iid" --tag "massajoy2-web:$RELEASE_TAG" .
+      - name: Package both images and write a checksum
+        run: |
+          cd "$RUNNER_TEMP/staging-images"
+          docker save "massajoy2-api:$RELEASE_TAG" "massajoy2-web:$RELEASE_TAG" | gzip -1 > images.tar.gz
+          sha256sum images.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: massajoy2-staging-images-c6298a37
+          path: ${{ runner.temp }}/staging-images/
+          compression-level: 0
+          retention-days: 2
+          if-no-files-found: error
