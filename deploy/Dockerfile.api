@@ -1,0 +1,31 @@
+FROM node:24-bookworm-slim AS dependencies
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY backend/package*.json ./
+RUN --mount=type=cache,id=massajoy2-api-npm,target=/root/.npm npm ci --ignore-scripts --no-audit --no-fund --prefer-offline
+COPY backend/prisma ./prisma
+RUN --mount=type=cache,id=massajoy2-api-prisma,target=/root/.cache/prisma DATABASE_URL=mysql://generate:unused@db/massajoy2 node node_modules/prisma/build/index.js generate
+
+FROM dependencies AS build
+COPY backend/ ./
+RUN npm run typecheck && npm run build
+
+FROM dependencies AS production-dependencies
+RUN --mount=type=cache,id=massajoy2-api-npm,target=/root/.npm npm prune --omit=dev --ignore-scripts --no-audit --no-fund --offline
+
+FROM node:24-bookworm-slim
+ENV NODE_ENV=production APP_HOST=0.0.0.0 APP_PORT=8002
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /app/prisma ./prisma
+COPY --from=build --chown=node:node /app/scripts ./scripts
+COPY --from=build --chown=node:node /app/package*.json ./
+COPY data/massajoy1-sample.json /data/massajoy1-sample.json
+RUN mkdir -p /app/media /app/.local/store-account-credentials \
+    && chown node:node /app/media /app/.local/store-account-credentials \
+    && chmod 700 /app/media /app/.local/store-account-credentials
+USER node
+EXPOSE 8002
+CMD ["node", "dist/main.js"]

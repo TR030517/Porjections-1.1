@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { Search, Plus, Edit2, Trash2, Calendar, CheckCircle2, AlertCircle, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
-// We import/define predefined stores to match the ones in our system
-const PRESET_STORES = [
-  { id: 3246, shortName: 'ArivaSpa', logo: '🏥', name: 'Ariva Spa', address: '6728 W Coal Mine Ave A110, Littleton, CO 80123, USA' },
-  { id: 3221, shortName: 'Roesspa', logo: '💆', name: 'Roes spa', address: '6054 W 159th St, Oak Forest, IL 60452, USA' },
-];
+import { listResourcePage, createResource, updateResource, deleteResource, ResourceId } from '../api/resources';
+
+import { useAuthStore } from '../stores/authStore';
+import { useShopStore } from '../stores/shop';
+import { useConfirmation } from './Confirmation';
 
 interface Coupon {
-  id: number;
+  id: ResourceId;
   type: 'general' | 'merchant';
   name: string;
   amount: number; // e.g., 10
@@ -20,77 +20,52 @@ interface Coupon {
   endDate: string;
   status: '正常' | '关闭';
   updateDate: string;
+  claimedCount?: number;
+  totalQuantity?: number;
+  perUserLimit?: number;
+  configuredPerUserLimit?: number;
   // Merchant specific
   merchantShortLink?: string;
   merchantName?: string;
 }
 
-const initialCoupons: Coupon[] = [
-  {
-    id: 1001,
-    type: 'general',
-    name: '新人体验代金券',
-    amount: 10,
-    threshold: 50,
-    description: '新注册用户专享立减券，满50美元可用',
-    startDate: '2026-05-01',
-    endDate: '2026-12-31',
-    status: '正常',
-    updateDate: '2026-05-30'
-  },
-  {
-    id: 1002,
-    type: 'general',
-    name: '端午节专享通用券',
-    amount: 15,
-    threshold: 80,
-    description: '端午佳节全平台通用立减券',
-    startDate: '2026-06-15',
-    endDate: '2026-06-25',
-    status: '正常',
-    updateDate: '2026-05-30'
-  },
-  {
-    id: 2001,
-    type: 'merchant',
-    name: 'Ariva Spa 专属满减券',
-    amount: 20,
-    threshold: 100,
-    description: 'Ariva Spa 门店专属体验券',
-    startDate: '2026-05-30',
-    endDate: '2026-08-30',
-    status: '正常',
-    updateDate: '2026-05-30',
-    merchantShortLink: 'ArivaSpa',
-    merchantName: 'Ariva Spa'
-  },
-  {
-    id: 2002,
-    type: 'merchant',
-    name: 'Roes Spa 诚意折扣券',
-    amount: 30,
-    threshold: 150,
-    description: 'Roes Spa 首单特别礼遇券',
-    startDate: '2026-05-30',
-    endDate: '2026-09-30',
-    status: '关闭',
-    updateDate: '2026-05-29',
-    merchantShortLink: 'Roesspa',
-    merchantName: 'Roes spa'
-  }
-];
-
 export default function CouponManagement() {
-  const [coupons, setCoupons] = useState<Coupon[]>(initialCoupons);
-  const [activeTab, setActiveTab] = useState<'general' | 'merchant'>('general');
+  const { isStoreManager } = useAuthStore();
+  const { currentStoreId } = useShopStore();
+  const confirm = useConfirmation();
+  const [pageResult, setPageResult] = useState<{ key: string; items: Coupon[]; total: number } | null>(null);
+  const [loadError, setLoadError] = useState<{ key: string; message: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<'general' | 'merchant'>(isStoreManager ? 'merchant' : 'general');
   const [searchText, setSearchText] = useState('');
-  
+  const [search, setSearch] = useState('');
+  const [pageSize, setPageSize] = useState(25);
+  const scope = isStoreManager ? 'merchant' : activeTab;
+  const shopId = scope === 'merchant' ? currentStoreId ?? undefined : undefined;
+  const scopeKey = JSON.stringify([scope, shopId ?? null]);
+  const [pageState, setPageState] = useState({ scopeKey, page: 1 });
+  const page = pageState.scopeKey === scopeKey ? pageState.page : 1;
+  const setPage = (nextPage: number) => setPageState({ scopeKey, page: nextPage });
+  const queryKey = JSON.stringify([scopeKey, search, page, pageSize, reloadKey]);
+  const currentResult = pageResult?.key === queryKey ? pageResult : null;
+  const coupons = currentResult?.items ?? [];
+  const total = currentResult?.total ?? 0;
+  const requestError = loadError?.key === queryKey ? loadError.message : '';
+  const loading = !currentResult && !requestError;
+  const error = requestError || actionError;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const termsLocked = (editingCoupon?.claimedCount ?? 0) > 0;
+  const historicalLimit = editingCoupon?.configuredPerUserLimit ?? editingCoupon?.perUserLimit ?? 1;
 
   // Form states
-  const [formType, setFormType] = useState<'general' | 'merchant'>('general');
+  const [formType, setFormType] = useState<'general' | 'merchant'>(isStoreManager ? 'merchant' : 'general');
   const [formName, setFormName] = useState('');
   const [formAmount, setFormAmount] = useState('');
   const [formThreshold, setFormThreshold] = useState('');
@@ -99,60 +74,44 @@ export default function CouponManagement() {
   const [formEndDate, setFormEndDate] = useState('');
   const [formStatus, setFormStatus] = useState<'正常' | '关闭'>('正常');
 
-  // Merchant shortlink states
   const [merchantShortLink, setMerchantShortLink] = useState('');
-  const [searchedShortLink, setSearchedShortLink] = useState<string | null>(null);
-  const [matchedStore, setMatchedStore] = useState<typeof PRESET_STORES[0] | null>(null);
-  const [searchFeedback, setSearchFeedback] = useState<{ status: 'success' | 'not_found' | 'idle', message: string }>({
-    status: 'idle',
-    message: ''
-  });
 
-  // Filters the coupon list
-  const filteredCoupons = coupons.filter(item => {
-    if (item.type !== activeTab) return false;
-    if (searchText.trim() === '') return true;
-    return item.name.toLowerCase().includes(searchText.toLowerCase()) || 
-           (item.merchantShortLink && item.merchantShortLink.toLowerCase().includes(searchText.toLowerCase())) ||
-           (item.merchantName && item.merchantName.toLowerCase().includes(searchText.toLowerCase()));
-  });
+  useEffect(() => {
+    const controller = new AbortController();
+    setActionError('');
+    listResourcePage<Coupon>('coupons', { scope, search, page, pageSize, shopId }, controller.signal).then(result => {
+      if (controller.signal.aborted) return;
+      const lastPage = Math.max(1, Math.ceil(result.total / pageSize));
+      if (page > lastPage) {
+        setPageState({ scopeKey, page: lastPage });
+        return;
+      }
+      setPageResult({ key: queryKey, items: result.items, total: result.total });
+    }).catch((err) => {
+      if (!controller.signal.aborted) setLoadError({ key: queryKey, message: err instanceof Error ? err.message : '加载优惠券失败' });
+    });
+    return () => controller.abort();
+  }, [queryKey, scopeKey, scope, search, page, pageSize, shopId]);
 
-  // Handle validating / searching for merchant short link
-  const handleSearchShortLink = (linkToSearch: string) => {
-    const trimmed = linkToSearch.trim();
-    if (!trimmed) {
-      setSearchFeedback({
-        status: 'idle',
-        message: '请输入有效短链进行查询'
-      });
-      setMatchedStore(null);
-      setSearchedShortLink(null);
-      return;
-    }
-    
-    setSearchedShortLink(trimmed);
-    const foundStore = PRESET_STORES.find(
-      s => s.shortName.toLowerCase() === trimmed.toLowerCase()
-    );
+  const handleSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    setSearch(searchText.trim());
+    setPage(1);
+    setReloadKey(key => key + 1);
+  };
 
-    if (foundStore) {
-      setMatchedStore(foundStore);
-      setSearchFeedback({
-        status: 'success',
-        message: `✓ 匹配成功！已成功关联商家: ${foundStore.logo} ${foundStore.name}`
-      });
-    } else {
-      setMatchedStore(null);
-      setSearchFeedback({
-        status: 'not_found',
-        message: `⚠ 未找到该商家短链，提交后系统将以输入的主键进行本地关联`
-      });
-    }
+  const handleReset = () => {
+    setSearchText('');
+    setSearch('');
+    setActiveTab(isStoreManager ? 'merchant' : 'general');
+    setPage(1);
+    setReloadKey(key => key + 1);
   };
 
   const handleOpenAdd = () => {
+    setFormError('');
     setEditingCoupon(null);
-    setFormType(activeTab);
+    setFormType(scope);
     setFormName('');
     setFormAmount('');
     setFormThreshold('');
@@ -161,13 +120,11 @@ export default function CouponManagement() {
     setFormEndDate('');
     setFormStatus('正常');
     setMerchantShortLink('');
-    setSearchedShortLink(null);
-    setMatchedStore(null);
-    setSearchFeedback({ status: 'idle', message: '' });
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (coupon: Coupon) => {
+    setFormError('');
     setEditingCoupon(coupon);
     setFormType(coupon.type);
     setFormName(coupon.name);
@@ -177,567 +134,220 @@ export default function CouponManagement() {
     setFormStartDate(coupon.startDate);
     setFormEndDate(coupon.endDate);
     setFormStatus(coupon.status);
-    
-    if (coupon.type === 'merchant' && coupon.merchantShortLink) {
-      setMerchantShortLink(coupon.merchantShortLink);
-      setSearchedShortLink(coupon.merchantShortLink);
-      const foundStore = PRESET_STORES.find(
-        s => s.shortName.toLowerCase() === coupon.merchantShortLink?.toLowerCase()
-      );
-      if (foundStore) {
-        setMatchedStore(foundStore);
-        setSearchFeedback({
-          status: 'success',
-          message: `✓ 匹配成功！已关联商家: ${foundStore.logo} ${foundStore.name}`
-        });
-      } else {
-        setMatchedStore(null);
-        setSearchFeedback({
-          status: 'success',
-          message: `已关联：${coupon.merchantName || coupon.merchantShortLink}`
-        });
-      }
-    } else {
-      setMerchantShortLink('');
-      setSearchedShortLink(null);
-      setMatchedStore(null);
-      setSearchFeedback({ status: 'idle', message: '' });
-    }
+
+    setMerchantShortLink(coupon.merchantShortLink ?? '');
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('确定要删除此优惠券吗？')) {
-      setCoupons(prev => prev.filter(c => c.id !== id));
+  const handleDelete = async (id: ResourceId) => {
+    if (busy || !await confirm({ title: '停用优惠券', message: '优惠券将停止发放，历史领取记录保留。是否继续？', confirmLabel: '停用' })) return;
+    setBusy(true);
+    setActionError('');
+    try {
+      await deleteResource('coupons', id);
+      setReloadKey(key => key + 1);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '停用优惠券失败');
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleToggleStatus = (id: number) => {
-    setCoupons(prev => prev.map(c => c.id === id ? {
-      ...c,
-      status: c.status === '正常' ? '关闭' : '正常',
-      updateDate: new Date().toISOString().split('T')[0]
-    } : c));
+  const handleToggleStatus = async (id: ResourceId) => {
+    const coupon = coupons.find(item => item.id === id);
+    if (!coupon || busy) return;
+    setBusy(true);
+    setActionError('');
+    try {
+      await updateResource<Coupon>('coupons', id, { status: coupon.status === '正常' ? '关闭' : '正常' });
+      setReloadKey(key => key + 1);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : '更新优惠券状态失败');
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    if (busy) return;
+    setFormError('');
+    const amount = Number(formAmount);
+    const threshold = formThreshold.trim() === '' ? 0 : Number(formThreshold);
     if (!formName.trim()) {
-      alert('请输入优惠券名称');
+      setFormError('请输入优惠券名称。');
       return;
     }
-    if (!formAmount || isNaN(Number(formAmount))) {
-      alert('请输入有效的优惠金额');
+    if (!termsLocked && (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(threshold) || threshold < 0)) {
+      setFormError('请输入券名、正数优惠金额和不小于 0 的使用门槛。');
       return;
     }
-
-    if (formType === 'merchant') {
-      if (!merchantShortLink.trim()) {
-        alert('请输入商家短链进行绑定');
-        return;
-      }
+    if (!termsLocked && formType === 'merchant' && !merchantShortLink.trim()) {
+      setFormError('请输入关联商家短链。');
+      return;
     }
-
-    const todayStr = new Date().toISOString().split('T')[0];
-    const thresholdNum = formThreshold === '' || isNaN(Number(formThreshold)) ? 0 : Number(formThreshold);
-
-    if (editingCoupon) {
-      // Edit
-      setCoupons(prev => prev.map(c => {
-        if (c.id === editingCoupon.id) {
-          const updated: Coupon = {
-            ...c,
-            name: formName,
-            amount: Number(formAmount),
-            threshold: thresholdNum,
-            description: formDescription,
-            startDate: formStartDate || todayStr,
-            endDate: formEndDate || todayStr,
-            status: formStatus,
-            updateDate: todayStr
-          };
-          if (formType === 'merchant') {
-            updated.merchantShortLink = merchantShortLink.trim();
-            updated.merchantName = matchedStore ? matchedStore.name : merchantShortLink.trim();
-          }
-          return updated;
-        }
-        return c;
-      }));
-    } else {
-      // Add new
-      const nextId = coupons.length > 0 ? Math.max(...coupons.map(c => c.id)) + 1 : 1001;
-      const newCoupon: Coupon = {
-        id: nextId,
+    if (!termsLocked && (!formStartDate || !formEndDate || formEndDate < formStartDate)) {
+      setFormError('请选择有效期，结束日期不得早于开始日期。');
+      return;
+    }
+    const payload = {
+      name: formName.trim(),
+      description: formDescription.trim(),
+      status: formStatus,
+      ...(!termsLocked ? {
         type: formType,
-        name: formName,
-        amount: Number(formAmount),
-        threshold: thresholdNum,
-        description: formDescription,
-        startDate: formStartDate || todayStr,
-        endDate: formEndDate || todayStr,
-        status: formStatus,
-        updateDate: todayStr
-      };
-
-      if (formType === 'merchant') {
-        newCoupon.merchantShortLink = merchantShortLink.trim();
-        newCoupon.merchantName = matchedStore ? matchedStore.name : merchantShortLink.trim();
+        amount,
+        threshold,
+        perUserLimit: 1,
+        startDate: formStartDate,
+        endDate: formEndDate,
+        ...(formType === 'merchant' ? { merchantShortLink: merchantShortLink.trim() } : {}),
+      } : {}),
+    };
+    setBusy(true);
+    try {
+      const saved = editingCoupon
+        ? await updateResource<Coupon>('coupons', editingCoupon.id, payload)
+        : await createResource<Coupon>('coupons', payload);
+      setActiveTab(saved.type);
+      if (!editingCoupon) {
+        setSearchText('');
+        setSearch('');
+        setPage(1);
       }
-
-      setCoupons(prev => [newCoupon, ...prev]);
+      setReloadKey(key => key + 1);
+      setIsModalOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : '保存优惠券失败');
+    } finally {
+      setBusy(false);
     }
-
-    setIsModalOpen(false);
   };
+
+  const inputClass = 'w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#48a1a1] focus:ring-2 focus:ring-[#48a1a1]/15 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500';
+  const labelClass = 'mb-2 block text-[13px] font-medium text-slate-600';
 
   return (
-    <div className="space-y-6">
-      {/* Header & Tabs */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center bg-gray-100 p-1 rounded-lg">
-          <button
-            onClick={() => setActiveTab('general')}
-            className={cn(
-              "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
-              activeTab === 'general' ? "bg-[#48a1a1] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-            )}
-          >
-            通用优惠券
-          </button>
-          <button
-            onClick={() => setActiveTab('merchant')}
-            className={cn(
-              "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
-              activeTab === 'merchant' ? "bg-[#48a1a1] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-            )}
-          >
-            商家优惠券
-          </button>
+    <div className="min-w-0 space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">优惠券管理</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">管理优惠券，设置优惠金额、适用商家和有效期限。已领取记录保留在客户券包中。</p>
         </div>
-        
-        <button 
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 bg-[#48a1a1] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#3d8b8b] transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          新增
+        <button disabled={loading || busy || !!error} onClick={handleOpenAdd} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#48a1a1] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#3d8b8b]">
+          <Plus className="h-4 w-4" />新增优惠券
         </button>
       </div>
 
-      {/* Filter Box */}
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-end gap-3">
-        <div className="flex-1 max-w-sm">
-          <label className="text-xs font-medium text-gray-500 block mb-1.5">券名</label>
+      {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"><span>{error}</span><button type="button" disabled={loading || busy} onClick={() => setReloadKey(key => key + 1)} className="rounded-lg border border-red-200 px-3 py-2">重新加载</button></div>}
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" role="tablist" aria-label="优惠券类型">
+        {(isStoreManager ? ['merchant'] as const : ['general', 'merchant'] as const).map(tab => (
+          <button key={tab} onClick={() => { setActiveTab(tab); setPage(1); }} role="tab" aria-selected={scope === tab} className={cn('rounded-lg px-4 py-2.5 text-sm font-medium transition', scope === tab ? 'bg-[#eaf5f4] text-[#2e7d7d]' : 'text-slate-500 hover:bg-white hover:text-slate-800')}>
+            {tab === 'general' ? '通用优惠券' : '商家优惠券'}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200/80 bg-white p-5">
+        <div className="min-w-0 max-w-xl flex-[1_1_280px]">
+          <label htmlFor="coupon-search" className={labelClass}>搜索优惠券</label>
           <div className="relative">
-            <input 
-              type="text" 
-              placeholder="请输入券名"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-100 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
-            />
-            {searchText && (
-              <button 
-                onClick={() => setSearchText('')}
-                className="absolute right-10 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 text-gray-400 text-xs"
-              >
-                ✕
-              </button>
-            )}
-            <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input id="coupon-search" type="search" maxLength={100} placeholder="输入优惠券名称" value={searchText} onChange={(e) => setSearchText(e.target.value)} className={cn(inputClass, 'pl-10')} />
           </div>
         </div>
-        <button className="bg-[#48a1a1] text-white p-2.5 rounded-lg hover:bg-[#3d8b8b] transition-colors">
-          <Search className="w-4 h-4" />
-        </button>
-      </div>
+        <button type="submit" className="rounded-lg bg-[#48a1a1] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#3d8b8b]">查询</button>
+        <button type="button" onClick={handleReset} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50">重置</button>
+        <p className="py-2.5 text-[13px] text-slate-500" aria-live="polite">{loading || requestError ? '等待查询结果' : `共 ${total} 张优惠券`}</p>
+      </form>
 
-      {/* Grid List Table */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      {busy && !isModalOpen && <p role="status" className="text-sm text-slate-500">正在更新优惠券…</p>}
+      <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-50/50 border-b border-gray-100">
-                <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">ID</th>
-                <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">卡名</th>
-                {activeTab === 'merchant' && (
-                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600 animate-fade-in">对应商家 / 短链</th>
-                )}
-                <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">优惠额度</th>
-                <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">满额度</th>
-                <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">有效时间</th>
-                <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">状态</th>
-                <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">更新日期</th>
-                <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">操作</th>
+          <table className={cn('w-full text-left text-sm', scope === 'merchant' ? 'min-w-[1220px]' : 'min-w-[1050px]')} aria-busy={loading}>
+            <thead className="border-b border-slate-100 bg-slate-50/70 text-[13px] text-slate-500">
+              <tr>
+                <th className="px-5 py-4 font-medium">ID</th>
+                <th className="px-5 py-4 font-medium">优惠券名称</th>
+                {scope === 'merchant' && <th className="px-5 py-4 font-medium">适用商家</th>}
+                <th className="px-5 py-4 font-medium">优惠金额</th>
+                <th className="px-5 py-4 font-medium">使用门槛</th>
+                <th className="px-5 py-4 font-medium">有效时间</th>
+                <th className="px-5 py-4 font-medium">状态</th>
+                <th className="px-5 py-4 font-medium">更新日期</th>
+                <th className="px-5 py-4 text-right font-medium">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filteredCoupons.length === 0 ? (
-                <tr>
-                  <td colSpan={activeTab === 'merchant' ? 9 : 8} className="px-6 py-12 text-center text-gray-400 text-sm">
-                    暂无数据
-                  </td>
-                </tr>
-              ) : (
-                filteredCoupons.map((row, idx) => (
-                  <motion.tr 
-                    key={row.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.03 }}
-                    className="hover:bg-gray-50/50 transition-colors"
-                  >
-                    <td className="px-6 py-4 text-sm text-gray-500 font-mono">{row.id}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                      {row.name}
-                      {row.description && (
-                        <p className="text-xs text-gray-400 font-normal mt-0.5 max-w-xs truncate">{row.description}</p>
-                      )}
-                    </td>
-                    {activeTab === 'merchant' && (
-                      <td className="px-6 py-4 text-sm">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-gray-700 text-xs">
-                            {row.merchantName || '自营/特殊商户'}
-                          </span>
-                          <span className="text-[10px] bg-sky-50 text-sky-600 border border-sky-100 rounded px-1.5 py-0.5 mt-1 self-start font-mono">
-                            {row.merchantShortLink || '无'}
-                          </span>
-                        </div>
-                      </td>
-                    )}
-                    <td className="px-6 py-4 text-sm text-pink-600 font-bold font-mono">
-                      ${row.amount}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 font-mono">
-                      {row.threshold > 0 ? `$${row.threshold}` : '无门槛'}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-gray-400" />
-                        <span>{row.startDate} ~ {row.endDate}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "text-xs font-semibold px-2 py-0.5 rounded-full",
-                          row.status === '正常' ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-500"
-                        )}>
-                          {row.status}
-                        </span>
-                        <button
-                          onClick={() => handleToggleStatus(row.id)}
-                          className={cn(
-                            "w-8 h-4 rounded-full relative transition-colors duration-200 focus:outline-none",
-                            row.status === '正常' ? "bg-[#48a1a1]" : "bg-gray-200"
-                          )}
-                        >
-                          <span 
-                            className={cn(
-                              "w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all shadow-sm",
-                              row.status === '正常' ? "right-0.5" : "left-0.5"
-                            )} 
-                          />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-xs text-gray-500 font-mono">{row.updateDate}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <button 
-                          onClick={() => handleOpenEdit(row)}
-                          className="p-1 px-2.5 text-xs text-[#48a1a1] hover:bg-[#eef8f8] bg-gray-50 border border-gray-100 rounded font-medium transition-colors"
-                        >
-                          编辑
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(row.id)}
-                          className="p-1 px-2.5 text-xs text-red-500 hover:bg-red-50 bg-gray-50 border border-gray-100 rounded font-medium transition-colors"
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
+            <tbody className="divide-y divide-slate-100 text-[13px] text-slate-600">
+              {loading ? (
+                <tr><td colSpan={scope === 'merchant' ? 9 : 8} className="px-5 py-16 text-center text-sm text-slate-500">正在加载优惠券…</td></tr>
+              ) : requestError ? (
+                <tr><td colSpan={scope === 'merchant' ? 9 : 8} className="px-5 py-16 text-center text-sm text-slate-500">优惠券加载失败，请重试。</td></tr>
+              ) : coupons.length === 0 ? (
+                <tr><td colSpan={scope === 'merchant' ? 9 : 8} className="px-5 py-16 text-center text-sm text-slate-400">暂无匹配的优惠券，可调整搜索或新增优惠券。</td></tr>
+              ) : coupons.map((row, idx) => (
+                <motion.tr key={row.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(idx, 8) * 0.03 }} className="hover:bg-slate-50/60">
+                  <td className="px-5 py-4 font-mono text-slate-400">{row.id}</td>
+                  <td className="min-w-[220px] px-5 py-4"><p className="font-medium text-slate-800">{row.name}</p>{row.description && <p className="mt-1.5 max-w-xs text-xs leading-5 text-slate-500">{row.description}</p>}<p className="mt-1 text-xs text-slate-400">每人限领 1 张{(row.configuredPerUserLimit ?? row.perUserLimit ?? 1) > 1 ? `（历史配置 ${row.configuredPerUserLimit ?? row.perUserLimit}，当前实际限领 1 张）` : ''}</p></td>
+                  {scope === 'merchant' && <td className="min-w-[160px] px-5 py-4"><p className="text-slate-700">{row.merchantName || '未提供门店名称'}</p><p className="mt-1.5 font-mono text-xs text-slate-400">{row.merchantShortLink || '—'}</p></td>}
+                  <td className="whitespace-nowrap px-5 py-4 font-semibold text-[#2e7d7d]">${row.amount}</td>
+                  <td className="whitespace-nowrap px-5 py-4">{row.threshold > 0 ? `满 $${row.threshold}` : '无门槛'}</td>
+                  <td className="whitespace-nowrap px-5 py-4 text-xs leading-6 text-slate-500"><p>{row.startDate}</p><p>至 {row.endDate}</p></td>
+                  <td className="whitespace-nowrap px-5 py-4"><button type="button" disabled={busy} onClick={() => handleToggleStatus(row.id)} aria-label={`${row.status === '正常' ? '关闭' : '启用'}优惠券：${row.name}`} aria-pressed={row.status === '正常'} className={cn('rounded-lg px-3 py-2 text-xs font-medium transition', row.status === '正常' ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')}>{row.status}</button></td>
+                  <td className="whitespace-nowrap px-5 py-4 text-xs text-slate-500">{row.updateDate}</td>
+                  <td className="whitespace-nowrap px-5 py-4 text-right"><div className="flex justify-end gap-2"><button disabled={busy} onClick={() => handleOpenEdit(row)} className="rounded-lg border border-slate-200 px-3 py-2 text-[13px] text-[#2e7d7d] hover:bg-[#f0f9f8]">编辑</button><button disabled={busy} onClick={() => handleDelete(row.id)} className="rounded-lg px-3 py-2 text-[13px] text-slate-500 hover:bg-rose-50 hover:text-rose-600">停用</button></div></td>
+                </motion.tr>
+              ))}
             </tbody>
           </table>
         </div>
-
-        {/* Footer info matching general page components */}
-        <div className="p-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-          <div>共 {filteredCoupons.length} 条</div>
-          <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded">
-             <span>15条/页</span>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 px-5 py-4 text-[13px] text-slate-500">
+          <span>{loading || requestError ? '—' : total > 0 ? `共 ${total} 条 · 显示 ${(page - 1) * pageSize + 1}–${(page - 1) * pageSize + coupons.length} 条` : '共 0 条'}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2" htmlFor="coupon-page-size">每页<select id="coupon-page-size" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }} className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-700">{[25, 50, 100].map(size => <option key={size} value={size}>{size} 条</option>)}</select></label>
+            <span>{loading || requestError ? `第 ${page} 页` : `第 ${page} / ${totalPages} 页`}</span>
+            <button type="button" aria-label="上一页优惠券" disabled={loading || busy || page <= 1} onClick={() => setPage(page - 1)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
+            <button type="button" aria-label="下一页优惠券" disabled={loading || busy || !!requestError || page >= totalPages} onClick={() => setPage(page + 1)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
           </div>
         </div>
       </div>
 
-      {/* Edit / Add Dialog */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <h3 className="text-sm font-semibold text-gray-800">
-                  {editingCoupon ? '编辑优惠券' : `新增${formType === 'merchant' ? '商家' : '通用'}优惠券`}
-                </h3>
-                <button 
-                  onClick={() => setIsModalOpen(false)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl" role="dialog" aria-modal="true" aria-labelledby="coupon-modal-title">
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-7">
+                <div><h3 id="coupon-modal-title" className="text-lg font-semibold text-slate-900">{editingCoupon ? '编辑优惠券' : '新增优惠券'}</h3><p className="mt-1.5 text-[13px] text-slate-500">填写优惠内容和使用规则。</p></div>
+                <button disabled={busy} onClick={() => setIsModalOpen(false)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700" aria-label="关闭优惠券设置"><X className="h-5 w-5" /></button>
               </div>
-
-              {/* Form Content */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
-                
-                {/* Dynamic Switch or Indicator for Type (only in adding, or display permanently) */}
-                {!editingCoupon && (
-                  <div className="flex items-center justify-between p-3 bg-sky-50/50 rounded-lg border border-sky-100 text-xs text-sky-700">
-                    <span className="font-semibold">优惠券类型:</span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormType('general');
-                          setSearchFeedback({ status: 'idle', message: '' });
-                        }}
-                        className={cn(
-                          "px-2 py-1 rounded transition-all",
-                          formType === 'general' ? "bg-[#48a1a1] text-white shadow" : "bg-white text-gray-600 border border-gray-200"
-                        )}
-                      >
-                        通用优惠券
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormType('merchant');
-                          if (merchantShortLink) handleSearchShortLink(merchantShortLink);
-                        }}
-                        className={cn(
-                          "px-2 py-1 rounded transition-all",
-                          formType === 'merchant' ? "bg-[#48a1a1] text-white shadow" : "bg-white text-gray-600 border border-gray-200"
-                        )}
-                      >
-                        商家优惠券
-                      </button>
+              <form onSubmit={handleSubmit} id="coupon-form" className="min-h-0 flex-1 space-y-7 overflow-y-auto px-5 py-6 sm:px-7">
+                <section className="space-y-5">
+                  <h4 className="text-sm font-semibold text-slate-900">基本信息</h4>
+                  {!editingCoupon && <fieldset><legend className={labelClass}>优惠券类型</legend><div className="flex flex-wrap gap-3">{(isStoreManager ? ['merchant'] as const : ['general', 'merchant'] as const).map(type => <button key={type} type="button" onClick={() => setFormType(type)} aria-pressed={formType === type} className={cn('rounded-lg border px-4 py-2.5 text-sm transition', formType === type ? 'border-[#48a1a1]/30 bg-[#eaf5f4] text-[#2e7d7d]' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>{type === 'general' ? '通用优惠券' : '商家优惠券'}</button>)}</div></fieldset>}
+                  {editingCoupon && <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[13px] leading-6 text-slate-600">{termsLocked ? `已领取 ${editingCoupon.claimedCount} 张：优惠金额、使用门槛、归属商家和有效期已锁定。` : '优惠券一旦被领取，优惠金额、使用门槛、归属商家和有效期将锁定。'} 停用后停止发放，客户券包中的历史记录保留；保存以服务器校验为准。</p>}
+                  <div><label htmlFor="coupon-name" className={labelClass}>优惠券名称 <span className="text-rose-500">*</span></label><input id="coupon-name" type="text" value={formName} onChange={(e) => setFormName(e.target.value)} className={inputClass} placeholder="例如：新人体验代金券" required /></div>
+                  {formType === 'merchant' && (
+                    <div className="space-y-4 rounded-xl border border-[#48a1a1]/20 bg-[#f5faf9] p-4">
+                      <div><label htmlFor="coupon-merchant-link" className={labelClass}>商家短链 <span className="text-rose-500">*</span></label><input id="coupon-merchant-link" type="text" maxLength={100} disabled={termsLocked} value={merchantShortLink} onChange={(e) => setMerchantShortLink(e.target.value)} className={inputClass} placeholder="输入实际门店短链" required /></div>
+                      {editingCoupon?.merchantName && merchantShortLink.trim() === editingCoupon.merchantShortLink && <p className="text-[13px] text-[#2e7d7d]">当前关联：{editingCoupon.merchantName}</p>}
+                      <p className="text-xs leading-5 text-slate-500">保存时核对门店短链及账户权限；门店名称以保存结果为准。</p>
                     </div>
+                  )}
+                </section>
+                <section className="space-y-5 border-t border-slate-100 pt-6">
+                  <h4 className="text-sm font-semibold text-slate-900">优惠规则</h4>
+                  <div><label htmlFor="coupon-per-user-limit" className={labelClass}>每人限领数量</label><input id="coupon-per-user-limit" type="number" value={1} readOnly className={inputClass} aria-describedby="coupon-per-user-help" /><p id="coupon-per-user-help" className="mt-2 text-xs leading-5 text-slate-500">当前每位顾客对同一优惠券最多领取 1 张，与券发行总量分别管理。{historicalLimit > 1 ? ` 此券历史配置为 ${historicalLimit} 张，当前实际限领仍为 1 张；不代表顾客曾领取多张。${termsLocked ? '已有领取记录，本次保留历史规则记录。' : '保存后将明确设为 1 张。'}` : ''}</p></div>
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <div><label htmlFor="coupon-amount" className={labelClass}>优惠金额（美元）<span className="text-rose-500">*</span></label><input id="coupon-amount" type="number" disabled={termsLocked} value={formAmount} onChange={(e) => setFormAmount(e.target.value)} className={inputClass} placeholder="例如：10" required min="0.01" step="0.01" /></div>
+                    <div><label htmlFor="coupon-threshold" className={labelClass}>使用门槛（美元）</label><input id="coupon-threshold" type="number" disabled={termsLocked} value={formThreshold} onChange={(e) => setFormThreshold(e.target.value)} className={inputClass} placeholder="例如：50" min="0" step="0.01" /><p className="mt-2 text-xs text-slate-500">留空或填 0 为无门槛</p></div>
                   </div>
-                )}
-
-                {/* CRITICAL FEATURE INPUT: Merchant Short Link ("商家短链") for Merchant Type Coupons */}
-                {formType === 'merchant' && (
-                  <div className="space-y-2 p-3.5 bg-[#f0f9f9]/60 border border-[#48a1a1]/15 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                        <span className="text-red-500">*</span> 商家短链 (唯一商家码)
-                      </label>
-                      
-                      {/* Short links suggestion fast clicks */}
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
-                        <span>常用短链:</span>
-                        {PRESET_STORES.map(s => (
-                          <button
-                            key={s.shortName}
-                            type="button"
-                            onClick={() => {
-                              setMerchantShortLink(s.shortName);
-                              handleSearchShortLink(s.shortName);
-                            }}
-                            className="text-blue-600 hover:underline bg-white border border-gray-100 rounded px-1"
-                          >
-                            {s.shortName}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <input 
-                          type="text"
-                          value={merchantShortLink}
-                          onChange={(e) => {
-                            setMerchantShortLink(e.target.value);
-                            // Clear state on typing if desired, but we let them search
-                          }}
-                          className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20 font-mono"
-                          placeholder="请输入唯一的商家短链，例如: ArivaSpa"
-                          required
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleSearchShortLink(merchantShortLink)}
-                        className="bg-[#48a1a1] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#3d8b8b] transition-colors shadow-xs py-2 shrink-0 flex items-center gap-1"
-                      >
-                        <Search className="w-3.5 h-3.5" />
-                        验证
-                      </button>
-                    </div>
-
-                    {/* Search Feedback Info Area */}
-                    {searchFeedback.status !== 'idle' && (
-                      <div className={cn(
-                        "text-xs p-2 rounded flex items-start gap-1.5 animate-fade-in",
-                        searchFeedback.status === 'success' 
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
-                          : "bg-amber-50 text-amber-700 border border-amber-100"
-                      )}>
-                        {searchFeedback.status === 'success' ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                        ) : (
-                          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                        )}
-                        <div>
-                          <p className="font-semibold">{searchFeedback.message}</p>
-                          {matchedStore && (
-                            <p className="text-[10px] text-emerald-600 mt-0.5">
-                              商铺名称: {matchedStore.name} | 详情: {matchedStore.address}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 优惠券名 */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-700 block">
-                    <span className="text-red-500">*</span> 优惠券名
-                  </label>
-                  <input 
-                    type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
-                    placeholder="请输入优惠券名称，如：双十一体验代金券"
-                    required
-                  />
-                </div>
-
-                {/* 优惠金额 */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-700 block">
-                    <span className="text-red-500">*</span> 优惠金额
-                  </label>
-                  <input 
-                    type="number"
-                    value={formAmount}
-                    onChange={(e) => setFormAmount(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20 font-mono"
-                    placeholder="请输入优惠立减金额 (美元)"
-                    required
-                    min="1"
-                  />
-                </div>
-
-                {/* 满额度 */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-gray-700 block">满额度</label>
-                  <input 
-                    type="number"
-                    value={formThreshold}
-                    onChange={(e) => setFormThreshold(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20 font-mono"
-                    placeholder="请输入满减门槛金额，不填或为0则无门槛"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-0.5">为0或空永久立减优惠额度</p>
-                </div>
-
-                {/* 说明 */}
-                <div className="space-y-1 font-sans">
-                  <label className="text-xs font-semibold text-gray-700 block">使用说明</label>
-                  <textarea 
-                    rows={2.5}
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
-                    placeholder="输入该优惠券的使用限制与相关备注..."
-                  />
-                </div>
-
-                {/* Dates selection */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-gray-700 block text-gray-600">有效开始时间</label>
-                    <input 
-                      type="date"
-                      value={formStartDate}
-                      onChange={(e) => setFormStartDate(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-gray-700 block text-gray-600">有效结束时间</label>
-                    <input 
-                      type="date"
-                      value={formEndDate}
-                      onChange={(e) => setFormEndDate(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
-                    />
-                  </div>
-                </div>
-
-                {/* Status Selection */}
-                <div className="space-y-1 pt-1">
-                  <label className="text-xs font-semibold text-gray-700 block">状态</label>
-                  <div className="flex items-center gap-6 mt-1 text-sm text-gray-700">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="radio" 
-                        name="couponStatus"
-                        checked={formStatus === '正常'}
-                        onChange={() => setFormStatus('正常')}
-                        className="text-[#48a1a1] focus:ring-[#48a1a1] cursor-pointer"
-                      />
-                      <span>正常</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="radio" 
-                        name="couponStatus"
-                        checked={formStatus === '关闭'}
-                        onChange={() => setFormStatus('关闭')}
-                        className="text-[#48a1a1] focus:ring-[#48a1a1] cursor-pointer"
-                      />
-                      <span>关闭</span>
-                    </label>
-                  </div>
-                </div>
-
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2"><div><label htmlFor="coupon-start-date" className={labelClass}>开始日期</label><input id="coupon-start-date" type="date" disabled={termsLocked} required value={formStartDate} onChange={(e) => setFormStartDate(e.target.value)} className={inputClass} /></div><div><label htmlFor="coupon-end-date" className={labelClass}>结束日期</label><input id="coupon-end-date" type="date" disabled={termsLocked} required min={formStartDate || undefined} value={formEndDate} onChange={(e) => setFormEndDate(e.target.value)} className={inputClass} /></div></div>
+                  <div><label htmlFor="coupon-description" className={labelClass}>使用说明</label><textarea id="coupon-description" rows={3} value={formDescription} onChange={(e) => setFormDescription(e.target.value)} className={inputClass} placeholder="使用限制或其他备注" /></div>
+                  <fieldset><legend className={labelClass}>状态</legend><div className="flex flex-wrap gap-6 text-sm text-slate-700">{(['正常', '关闭'] as const).map(status => <label key={status} className="flex min-h-10 cursor-pointer items-center gap-2"><input type="radio" name="couponStatus" checked={formStatus === status} onChange={() => setFormStatus(status)} className="h-4 w-4 accent-[#48a1a1]" />{status}</label>)}</div></fieldset>
+                </section>
+                {formError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{formError}</p>}
               </form>
-
-              {/* Action operations buttons */}
-              <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  className="px-5 py-2 bg-[#48a1a1] hover:bg-[#3d8b8b] text-white rounded-lg text-sm font-medium transition-colors shadow-xs"
-                >
-                  提交
-                </button>
-              </div>
+              <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-7"><button type="button" disabled={busy} onClick={() => setIsModalOpen(false)} className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">取消</button><button type="submit" disabled={busy} form="coupon-form" className="rounded-lg bg-[#48a1a1] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#3d8b8b]">{busy ? '正在保存…' : '保存优惠券'}</button></div>
             </motion.div>
           </div>
         )}

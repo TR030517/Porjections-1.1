@@ -1,0 +1,19 @@
+.store-control.store-timezone-trigger { display:flex; align-items:center; gap:10px; min-height:43px; text-align:left; cursor:pointer; }
+.store-timezone-trigger>span:first-child { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.store-timezone-trigger>svg { flex-shrink:0; color:#64748b; }
+.store-timezone-placeholder { color:#94a3b8; }
+.store-timezone-trigger .store-timezone-clock { font-size:12px; }
+.store-timezone-popup { position:fixed; z-index:180; display:flex; flex-direction:column; overflow:hidden; border:1px solid #dfe6eb; border-radius:8px; background:#fff; box-shadow:0 8px 28px #0f172a22; color:#1f2937; font-size:13px; }
+.store-timezone-search { display:flex; align-items:center; gap:8px; flex-shrink:0; padding:9px 11px; border-bottom:1px solid #edf1f4; color:#89939f; }
+.store-timezone-search input { display:block; width:100%; min-width:0; border:0; outline:none; background:transparent; color:#334155; font:inherit; }
+.store-timezone-search input::placeholder { color:#94a3b8; }
+.store-timezone-options { overflow-y:auto; overscroll-behavior:contain; padding:4px; scrollbar-width:thin; }
+.store-timezone-option { display:flex; align-items:center; gap:8px; width:100%; padding:9px 7px; border:0; border-radius:4px; background:#fff; text-align:left; cursor:pointer; line-height:19px; font:inherit; }
+.store-timezone-option.is-focused { background:#f3f4f6; }
+.store-timezone-option.is-selected { background:#eef8f7; }
+.store-timezone-name { flex:1; min-width:0; overflow-wrap:anywhere; }
+.store-timezone-name strong { font-weight:600; }
+.store-timezone-clock { flex-shrink:0; color:#787f87; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.store-timezone-check { display:flex; width:13px; flex-shrink:0; color:#287c7c; }
+.store-timezone-empty { margin:0; padding:14px 10px; color:#64748b; }
+@media(max-width:540px) { .store-timezone-option { padding:10px 6px; font-size:12px; } .store-timezone-trigger .store-timezone-clock { display:none; } }

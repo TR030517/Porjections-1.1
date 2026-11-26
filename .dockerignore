@@ -1,0 +1,20 @@
+.git
+**/node_modules
+**/dist
+**/build
+**/.dart_tool
+**/.env*
+**/coverage
+.local
+.tools
+**/.local
+**/.tools
+**/*firebase-adminsdk*.json
+**/*service-account*.json
+# Only the non-secret compatibility sample is used by Dockerfile.api.
+# Imported exports, databases and credential handoff files stay outside context.
+data/**
+!data/massajoy1-sample.json
+server
+docs/verification
+**/*.log

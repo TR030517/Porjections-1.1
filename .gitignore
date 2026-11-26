@@ -6,3 +6,16 @@ coverage/
 *.log
 .env*
 !.env.example
+!.env.release.example
+!backend/.env.example
+
+# Massajoy2.0 local test database (the sanitized JSON fixture remains reviewable)
+data/*.sqlite
+data/*.sqlite-*
+
+.local/
+.tools/
+.dart_tool/
+.flutter-plugins*
+*firebase-adminsdk*.json
+*service-account*.json

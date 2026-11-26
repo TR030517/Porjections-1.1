@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "sourceSystem": "massajoy1",
+  "batchId": "live1-sample-2026-10-28-newsoothing",
+  "capturedAt": "2026-10-28T05:29:50.357Z",
+  "shops": [
+    {
+      "sourceEntity": "merchant",
+      "sourceId": "3763",
+      "targetShopId": "1",
+      "match": {
+        "name": "New Soothing Day Spa",
+        "shortName": "NewSoothingDaySpa"
+      },
+      "sourceUrls": [
+        "https://app.asianmassagebook.com/admin#/merchant/index",
+        "https://app.asianmassagebook.com/merchant#/merchant/setting",
+        "https://app.asianmassagebook.com/merchant#/project/index"
+      ],
+      "description": "New Soothing Day Spa offers premium body care, facial & foot treatments in a peaceful, cozy space.\nStep away from busy life and treat yourself to gentle, soothing self-care.\nOur skilled team creates a calm experience to help you unwind and recharge.\nBook your session for your well-deserved relaxation time.",
+      "businessHours": {
+        "mon": [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        "tue": [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        "wed": [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        "thu": [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        "fri": [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        "sat": [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ],
+        "sun": [
+          {
+            "start": "09:00",
+            "end": "21:00"
+          }
+        ]
+      },
+      "rawCatalog": [
+        {
+          "sourceProjectId": "1976",
+          "name": "Body Massage",
+          "sourceEnabled": true,
+          "sourceDescription": "Our Treatment\nSwedish Massage\nDee Tissue Massage\nHot Stone Therapy\nFree Hot Stone",
+          "sourcePriceUnitLabel": "实价",
+          "currency": null,
+          "priceBasis": null,
+          "variants": [
+            {
+              "name": "30mins Body Massage",
+              "rawPrice": "50.00",
+              "durationMinutes": 30
+            },
+            {
+              "name": "60mins Body Massage",
+              "rawPrice": "70.00",
+              "durationMinutes": 60
+            },
+            {
+              "name": "90mins Body Massage",
+              "rawPrice": "110.00",
+              "durationMinutes": 90
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

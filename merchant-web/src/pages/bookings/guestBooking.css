@@ -1,0 +1,8 @@
+.guest-booking-form,.guest-booking-form label,.guest-booking-result { display:grid; gap:12px; min-width:0; }
+.guest-booking-form label { gap:6px; color:#344054; font-size:13px; }
+.guest-booking-form .ant-select { width:100%; min-width:0; }
+.guest-booking-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.guest-booking-form .ant-input { min-width:0; }
+.guest-booking-hint { margin:0; color:#667085; font-size:12px; line-height:1.6; }
+.guest-booking-summary { display:grid; gap:6px; padding:12px; background:#f3f8f7; border-radius:8px; overflow-wrap:anywhere; }
+@media(max-width:600px) { .guest-booking-fields { grid-template-columns:minmax(0,1fr); } .guest-booking-form .ant-btn { max-width:100%; white-space:normal; height:auto; min-height:32px; } }

@@ -1,0 +1,20 @@
+.store-project-inventory { display: grid; gap: 14px; color: #536578; font-size: 13px; line-height: 1.7; }
+.store-project-inventory p { margin: 0; }
+.store-project-inventory button { min-height: 36px; padding: 7px 12px; border: 1px solid #d5e3e5; border-radius: 9px; background: #fff; color: #287c7c; font: inherit; cursor: pointer; }
+.store-project-inventory button:disabled { opacity: .45; cursor: not-allowed; }
+.store-project-inventory button:focus-visible, .store-project-inventory input:focus-visible, .store-project-inventory select:focus-visible { outline: 2px solid #48a1a1; outline-offset: 2px; }
+.store-project-inventory__filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.store-project-inventory__filters label { display: grid; gap: 5px; flex: 1 1 160px; }
+.store-project-inventory__filters input, .store-project-inventory__filters select { box-sizing: border-box; width: 100%; padding: 9px 12px; border: 1px solid #d5e3e5; border-radius: 9px; background: #fff; color: #263d4c; font: inherit; }
+.store-project-inventory ul { list-style: none; padding: 0; margin: 0; }
+.store-project-inventory__list li { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 14px; border: 1px solid #e2eaec; border-radius: 12px; background: #fff; }
+.store-project-inventory__list { display: grid; gap: 10px; }
+.store-project-inventory__list li.is-selected { border-color: #48a1a1; background: #f0faf8; }
+.store-project-inventory__list li.is-unlinked { border-style: dashed; background: #fbfdfd; }
+.store-project-inventory__list strong { display: block; color: #253f4b; font-size: 14px; }
+.store-project-inventory__list span, .store-project-inventory small { display: block; overflow-wrap: anywhere; }
+.store-project-inventory__actions, .store-project-inventory__pagination { display: flex; flex-wrap: wrap; gap: 8px; }
+.store-project-inventory__pagination { justify-content: flex-end; }
+.store-project-inventory__legacy { border: 1px solid #e2eaec; border-radius: 12px; padding: 14px; background: #f8fbfb; }
+.store-project-inventory__legacy summary { cursor: pointer; color: #36535e; font-weight: 600; }
+.store-project-inventory__legacy p { padding: 10px 0; }

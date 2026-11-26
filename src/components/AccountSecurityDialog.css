@@ -1,0 +1,17 @@
+.account-security-backdrop { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgb(15 23 42 / 42%); line-height: 1.65; color: #334155; }
+.account-security-dialog { width: min(520px, 100%); max-height: calc(100dvh - 40px); overflow: auto; border: 1px solid #dce5eb; border-radius: 18px; padding: 24px; background: white; box-shadow: 0 20px 70px rgb(15 23 42 / 18%); font-size: 14px; text-align: left; }
+.account-security-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+.account-security-heading h2 { margin: 0; font-size: 19px; font-weight: 650; color: #172c3b; }
+.account-security-dialog p { margin: 8px 0 12px; overflow-wrap: anywhere; }
+.account-security-dialog form { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+.account-security-dialog label { margin-top: 4px; font-weight: 550; }
+.account-security-dialog input:not([hidden]) { width: 100%; min-width: 0; box-sizing: border-box; padding: 10px 12px; min-height: 42px; border: 1px solid #cbd8e1; border-radius: 9px; color: #172c3b; background: white; font: inherit; }
+.account-security-dialog input:focus { outline: 2px solid #287c7c; outline-offset: 1px; }
+.account-security-dialog button { min-height: 40px; border: 1px solid #cbd8e1; border-radius: 9px; padding: 8px 14px; background: white; color: #334155; font: inherit; cursor: pointer; }
+.account-security-heading button { min-width: 36px; min-height: 36px; padding: 0; font-size: 22px; }
+.account-security-dialog button:disabled, .account-security-dialog input:disabled { cursor: not-allowed; opacity: .6; }
+.account-security-dialog .account-security-primary { background: #287c7c; border-color: #287c7c; color: white; }
+.account-security-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 12px; }
+.account-security-dialog .account-security-error { border-radius: 8px; padding: 10px 12px; color: #a32929; background: #fef2f2; }
+.account-security-dialog .account-security-help, .account-security-dialog form > p:not([role]) { color: #64748b; font-size: 12px; }
+@media (max-width: 480px) { .account-security-backdrop { padding: 12px; } .account-security-dialog { padding: 20px; max-height: calc(100dvh - 24px); } }

@@ -1,0 +1,41 @@
+.store-hours-editor { min-width: 0; }
+.store-hours-week { overflow: hidden; border: 1px solid #e5eaf0; border-radius: 10px; background: #fff; }
+.store-hours-day { display: grid; grid-template-columns: minmax(94px, 1fr) minmax(0, 262px) 58px; align-items: start; gap: 10px; padding: 9px 12px; }
+.store-hours-day + .store-hours-day { border-top: 1px solid #edf0f3; }
+.store-hours-day-label { display: flex; align-items: center; gap: 10px; min-height: 32px; color: #172b4d; font-size: 13px; }
+.store-hours-toggle { display: inline-flex; align-items: center; flex-shrink: 0; width: 29px; height: 17px; padding: 2px; border: 0; border-radius: 999px; background: #cbd5e1; cursor: pointer; transition: background .15s; }
+.store-hours-toggle[aria-checked="true"] { background: #172b4d; }
+.store-hours-toggle span { width: 13px; height: 13px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.store-hours-toggle[aria-checked="true"] span { transform: translateX(12px); }
+.store-hours-toggle:focus-visible, .store-hours-icon:focus-visible { outline: 2px solid #3d999b; outline-offset: 2px; }
+.store-hours-periods { display: grid; gap: 7px; min-width: 0; }
+.store-hours-period { display: grid; grid-template-columns: minmax(0, 1fr) 10px minmax(0, 1fr) 22px; align-items: center; gap: 7px; min-width: 0; }
+.store-hours-time { width: 100%; min-width: 0; height: 32px; padding: 4px 7px; border: 1px solid #dbe3eb; border-radius: 8px; background: #fff; color: #173552; font-size: 12px; outline: none; }
+.store-hours-time:focus { border-color: #3d999b; box-shadow: 0 0 0 2px #3d999b1a; }
+.store-hours-time:disabled { background: #f8fafc; color: #94a3b8; }
+.store-hours-separator { text-align: center; color: #9aa8b8; }
+.store-hours-actions { display: flex; align-items: center; gap: 2px; min-height: 32px; }
+.store-hours-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex-shrink: 0; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #78909c; cursor: pointer; }
+.store-hours-icon:hover { background: #eef9f8; color: #25898b; }
+.store-hours-icon:disabled { opacity: .3; cursor: default; background: transparent; }
+.store-hours-remove { width: 22px; }
+.store-hours-remove:hover { background: #fff1f2; color: #dc2626; }
+.store-hours-copy { color: #64748b; }
+.store-hours-copy-spacer { width: 28px; }
+.store-hours-help, .store-hours-notice, .store-hours-error { margin: 9px 0 0; font-size: 12px; line-height: 1.7; }
+.store-hours-help { color: #7c8c9f; }
+.store-hours-notice { color: #217d7d; }
+.store-hours-error { color: #b91c1c; }
+@media (max-width: 540px) {
+  .store-hours-day { grid-template-columns: 70px minmax(0, 1fr) 58px; gap: 5px; padding: 8px; }
+  .store-hours-day-label { gap: 6px; }
+  .store-hours-period { grid-template-columns: minmax(0, 1fr) 7px minmax(0, 1fr) 18px; gap: 3px; }
+  .store-hours-time { padding: 4px; }
+  .store-hours-remove { width: 18px; }
+}
+@media (max-width: 360px) {
+  .store-hours-day { grid-template-columns: minmax(0, 1fr) 58px; }
+  .store-hours-day-label { grid-column: 1; }
+  .store-hours-actions { grid-column: 2; grid-row: 1; }
+  .store-hours-periods { grid-column: 1 / -1; grid-row: 2; }
+}

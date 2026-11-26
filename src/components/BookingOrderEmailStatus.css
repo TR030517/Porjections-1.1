@@ -1,0 +1,9 @@
+.booking-order-email-status { box-sizing: border-box; padding: 14px 16px; border: 1px solid #dce7e9; border-radius: 12px; background: #fff; color: #334b59; font-size: 14px; line-height: 1.6; }
+.booking-order-email-status p { margin: 0; }
+.booking-order-email-status .booking-order-email-status__title { font-weight: 600; }
+.booking-order-email-status .booking-order-email-status__message { margin-top: 5px; color: #627889; font-size: 13px; overflow-wrap: anywhere; }
+.booking-order-email-status__store { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5edef; }
+.booking-order-email-status .booking-order-email-status__refresh { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; margin-top: 10px; padding: 6px 12px; border: 1px solid #c7dddd; border-radius: 8px; background: #f5fbfa; color: #287c7c; font: inherit; font-size: 13px; cursor: pointer; }
+.booking-order-email-status .booking-order-email-status__refresh:hover:not(:disabled) { background: #e8f5f2; }
+.booking-order-email-status .booking-order-email-status__refresh:disabled { opacity: .5; cursor: not-allowed; }
+.booking-order-email-status .booking-order-email-status__refresh:focus-visible { outline: 2px solid #48a1a1; outline-offset: 2px; }

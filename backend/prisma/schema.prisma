@@ -1,0 +1,1555 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  MERCHANT
+  ADMIN
+  STAFF
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ShopCategory {
+  TUINA
+  REFLEXOLOGY
+  CUPPING
+  SCRAPING
+  MIXED
+}
+
+enum ShopStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum ShopType {
+  CERTIFIED
+  APPRENTICE
+}
+
+enum ServiceCategory {
+  MASSAGE
+  REFLEXOLOGY
+  CUPPING
+  SCRAPING
+  HEAD_THERAPY
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  REFUNDING
+  REFUNDED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum ImageType {
+  STORE_FRONT
+  INTERIOR
+  CERTIFICATE
+}
+
+enum CertType {
+  MASSAGE_LICENSE
+  BUSINESS_LICENSE
+  INSURANCE
+}
+
+model AuthSession {
+  id        String @id @default(uuid()) @db.VarChar(36)
+  userId    BigInt @map("user_id")
+  tokenHash String @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  rotatedTo String? @map("rotated_to") @db.VarChar(36)
+  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushDevices PushDevice[]
+  @@index([userId, expiresAt])
+  @@map("auth_sessions")
+}
+
+// Tokens are delivery credentials: never include them in public/user projections.
+model PushDevice {
+  id String @id @default(uuid()) @db.VarChar(36)
+  userId BigInt @map("user_id")
+  authSessionId String @map("auth_session_id") @db.VarChar(36)
+  tokenHash String @unique @map("token_hash") @db.Char(64)
+  token String @db.Text
+  bindingVersion String @map("binding_version") @db.VarChar(36)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authSession AuthSession @relation(fields: [authSessionId], references: [id], onDelete: Cascade)
+  @@index([userId, updatedAt])
+  @@index([authSessionId])
+  @@map("push_devices")
+}
+
+model PaymentRecord {
+  id String @id @default(uuid()) @db.VarChar(36)
+  bookingId BigInt @unique @map("booking_id")
+  provider String @db.VarChar(20)
+  providerBinding Json? @map("provider_binding")
+  providerPaymentId String? @unique @map("provider_payment_id") @db.VarChar(255)
+  providerOrderId String? @unique @map("provider_order_id") @db.VarChar(255)
+  checkoutUrl String? @map("checkout_url") @db.VarChar(2048)
+  idempotencyKey String @unique @map("idempotency_key") @db.VarChar(100)
+  amountCents Int @map("amount_cents")
+  currency String @db.VarChar(3)
+  status String @default("CREATED") @db.VarChar(20)
+  refundedCents Int @default(0) @map("refunded_cents")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  booking Booking @relation(fields: [bookingId], references: [id])
+  refunds RefundRequest[]
+  @@map("payment_records")
+}
+
+model PaymentEvent {
+  id String @id @default(uuid()) @db.VarChar(36)
+  provider String @db.VarChar(20)
+  eventId String @map("event_id") @db.VarChar(255)
+  payloadHash String @map("payload_hash") @db.VarChar(64)
+  processedAt DateTime @default(now()) @map("processed_at")
+  @@unique([provider, eventId])
+  @@map("payment_events")
+}
+
+model RefundRequest {
+  id String @id @default(uuid()) @db.VarChar(36)
+  bookingId BigInt @map("booking_id")
+  paymentRecordId String @map("payment_record_id") @db.VarChar(36)
+  idempotencyKey String @unique @map("idempotency_key") @db.VarChar(100)
+  amountCents Int @map("amount_cents")
+  status String @default("PENDING") @db.VarChar(20)
+  providerRefundId String? @unique @map("provider_refund_id") @db.VarChar(255)
+  failureCode String? @map("failure_code") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  booking Booking @relation(fields: [bookingId], references: [id])
+  payment PaymentRecord @relation(fields: [paymentRecordId], references: [id])
+  afterSalesCase AfterSalesCase?
+  @@index([bookingId, status])
+  @@map("refund_requests")
+}
+
+model User {
+  mediaAssets MediaAsset[] @relation("MediaUploader")
+  id            BigInt      @id @default(autoincrement())
+  loginName     String?     @unique @map("login_name") @db.VarChar(64)
+  phone         String?     @unique @db.VarChar(20)
+  email         String?     @unique @db.VarChar(255)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  passwordHash  String?     @map("password_hash") @db.VarChar(255)
+  name          String?     @db.VarChar(100)
+  avatarUrl     String?     @map("avatar_url") @db.VarChar(500)
+  role          Role        @default(CUSTOMER)
+  status        UserStatus  @default(ACTIVE)
+  appleId       String?     @unique @map("apple_id") @db.VarChar(255)
+  googleId      String?     @unique @map("google_id") @db.VarChar(255)
+  lastLoginAt   DateTime?   @map("last_login_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  deletedAt     DateTime?   @map("deleted_at")
+
+  bookings        Booking[]
+  reviews         Review[]
+  favorites       UserFavorite[]
+  ownedShops      Shop[]           @relation("ShopOwner")
+  reviewedShops   Shop[]           @relation("ShopReviewer")
+  auditLogs       AuditLog[]
+  merchantProfiles MerchantProfile[]
+  sensitiveHitLogs SensitiveHitLog[]
+  userCoupons     UserCoupon[]
+  authSessions    AuthSession[]
+  pushDevices     PushDevice[]
+  giftOrders      GiftCardOrder[]
+  giftRights      GiftCardEntitlement[]
+  giftSaleEntries GiftCardSaleEntry[]
+  notificationJobs NotificationOutbox[]
+  notifications UserNotification[]
+  notificationPreference NotificationPreference?
+  giftRedemptions GiftCardRedemption[]
+  afterSalesAsCustomer AfterSalesCase[] @relation("AfterSalesCustomer")
+  afterSalesAssigned AfterSalesCase[] @relation("AfterSalesAssigned")
+  afterSalesEvents AfterSalesEvent[] @relation("AfterSalesActor")
+  settlementEntries BookingSettlementEntry[]
+  staffGrants ShopStaffGrant[] @relation("StaffUser")
+  createdStaffGrants ShopStaffGrant[] @relation("StaffGrantCreator")
+  providerIdentities AuthProviderIdentity[]
+  shopLoginBinding ShopLoginBinding? @relation("ShopLoginAccount")
+  createdShopLoginBindings ShopLoginBinding[] @relation("ShopLoginBindingCreator")
+  createdShopAccountGrants ShopAccountGrant[] @relation("AccountGrantCreator")
+  updatedShopAccountGrants ShopAccountGrant[] @relation("AccountGrantUpdater")
+  revokedShopAccountGrants ShopAccountGrant[] @relation("AccountGrantRevoker")
+  accountProvisionActions AccountProvisionOperation[] @relation("AccountProvisionActor")
+  accountProvisionResults AccountProvisionOperation[] @relation("AccountProvisionUser")
+  calendarBlocks ShopCalendarBlock[]
+  calendarActionReceipts CalendarActionReceipt[]
+  assistedBookings Booking[] @relation("BookingAssistedBy")
+  guestBookingOperations GuestBookingOperation[]
+
+  @@index([phone])
+  @@index([role, status])
+  @@map("users")
+}
+
+model Shop {
+  mediaAssets MediaAsset[]
+  id             BigInt        @id @default(autoincrement())
+  ownerId        BigInt        @map("owner_id")
+  name           String        @db.VarChar(200)
+  shortName      String?       @unique @map("short_name") @db.VarChar(100)
+  timezone       String?       @db.VarChar(100)
+  studioProfile  Json?         @map("studio_profile")
+  nameEn         String?       @map("name_en") @db.VarChar(200)
+  description    String?       @db.Text
+  phone          String        @db.VarChar(20)
+  address        String        @db.VarChar(500)
+  city           String        @db.VarChar(100)
+  state          String        @db.VarChar(50)
+  zipCode        String        @map("zip_code") @db.VarChar(10)
+  latitude       Decimal       @db.Decimal(10, 7)
+  longitude      Decimal       @db.Decimal(10, 7)
+  category       ShopCategory
+  status         ShopStatus    @default(PENDING)
+  reviewComment  String?       @map("review_comment") @db.Text
+  reviewedAt     DateTime?     @map("reviewed_at")
+  reviewedBy     BigInt?       @map("reviewed_by")
+  shopType       ShopType      @default(APPRENTICE) @map("shop_type")
+  businessHours  Json?         @map("business_hours")
+  avgRating      Decimal       @default(0.00) @map("avg_rating") @db.Decimal(3, 2)
+  reviewCount    Int           @default(0) @map("review_count")
+  bookingCount   Int           @default(0) @map("booking_count")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+
+  staffGrants ShopStaffGrant[]
+  orderEmailSetting ShopOrderEmailSetting?
+  loginBinding ShopLoginBinding?
+  outgoingAccountGrants ShopAccountGrant[] @relation("AccountGrantSource")
+  incomingAccountGrants ShopAccountGrant[] @relation("AccountGrantTarget")
+  accountProvisionOperations AccountProvisionOperation[]
+  owner        User              @relation("ShopOwner", fields: [ownerId], references: [id])
+  reviewer     User?             @relation("ShopReviewer", fields: [reviewedBy], references: [id])
+  therapists   Therapist[]
+  shopServices ShopService[]
+  shopImages   ShopImage[]
+  certificates ShopCertificate[]
+  bookings     Booking[]
+  reviews      Review[]
+  favorites    UserFavorite[]
+  coupons      Coupon[]
+  giftProducts GiftCardProduct[]
+  giftOrders   GiftCardOrder[]
+  giftRights   GiftCardEntitlement[]
+  giftSalesPolicy ShopGiftSalesPolicy?
+  afterSalesCases AfterSalesCase[]
+  rooms ShopRoom[]
+  resourceLocks BookingResourceLock[]
+  merchantProfile MerchantProfile?
+  aliases ShopAlias[]
+  calendarBlocks ShopCalendarBlock[]
+  calendarActionReceipts CalendarActionReceipt[]
+  guestBookingOperations GuestBookingOperation[]
+
+  @@index([status])
+  @@index([latitude, longitude])
+  @@index([city, state])
+  @@index([name])
+  @@map("shops")
+}
+
+// Private notification destination. Never merge this relation into public shop profiles.
+model ShopOrderEmailSetting {
+  shopId BigInt @id @map("shop_id")
+  revision Int @default(0)
+  enabled Boolean @default(true)
+  recipientEmail String? @map("recipient_email") @db.VarChar(255)
+  recipientVerifiedAt DateTime? @map("recipient_verified_at") @db.DateTime(3)
+  challengeId String? @unique @map("challenge_id") @db.VarChar(36)
+  pendingEmail String? @map("pending_email") @db.VarChar(255)
+  codeHash String? @map("code_hash") @db.Char(64)
+  pendingExpiresAt DateTime? @map("pending_expires_at") @db.DateTime(3)
+  attempts Int @default(0)
+  deliveryState String? @map("delivery_state") @db.VarChar(20)
+  consumedAt DateTime? @map("consumed_at") @db.DateTime(3)
+  lastRequestedAt DateTime? @map("last_requested_at") @db.DateTime(3)
+  windowStart DateTime? @map("window_start") @db.DateTime(3)
+  sendCount Int @default(0) @map("send_count")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@map("shop_order_email_settings")
+}
+
+model ShopAlias {
+  id BigInt @id @default(autoincrement())
+  shopId BigInt @map("shop_id")
+  kind String @db.VarChar(20)
+  source String @db.VarChar(40)
+  value String @db.VarChar(100)
+  isActive Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  shop Shop @relation(fields:[shopId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+  @@unique([kind,source,value],map:"shop_aliases_kind_source_value_key")
+  @@index([shopId,isActive],map:"shop_aliases_shop_active_idx")
+  @@map("shop_aliases")
+}
+
+// Operational evidence only: physical receipts never credit an online payout balance.
+model BookingSettlementEntry {
+  id String @id @default(uuid()) @db.VarChar(36)
+  bookingId BigInt @map("booking_id")
+  operatorId BigInt? @map("operator_id")
+  kind String @db.VarChar(20)
+  amountCents Int @map("amount_cents")
+  currency String @db.VarChar(3)
+  method String? @db.VarChar(30)
+  requestKey String @map("request_key") @db.VarChar(80)
+  requestHash String @map("request_hash") @db.Char(64)
+  referenceEntryId String? @map("reference_entry_id") @db.VarChar(36)
+  occurredAt DateTime @map("occurred_at")
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+  booking Booking @relation(fields:[bookingId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+  operator User? @relation(fields:[operatorId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+  referenceEntry BookingSettlementEntry? @relation("SettlementCorrections",fields:[referenceEntryId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+  corrections BookingSettlementEntry[] @relation("SettlementCorrections")
+  @@unique([bookingId,requestKey],map:"booking_settlements_booking_request_key")
+  @@index([bookingId,createdAt],map:"booking_settlements_booking_created_idx")
+  @@index([referenceEntryId],map:"booking_settlements_reference_idx")
+  @@map("booking_settlement_entries")
+}
+
+model Region {
+  id BigInt @id @default(autoincrement())
+  kind String @db.VarChar(10)
+  parentId BigInt? @map("parent_id")
+  abbr String @default("") @db.VarChar(10)
+  english String @db.VarChar(200)
+  chinese String @db.VarChar(200)
+  status String @default("启用") @db.VarChar(10)
+  sort Int @default(100)
+  zipCode String? @map("zip_code") @db.VarChar(30)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  parent Region? @relation("RegionTree", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  children Region[] @relation("RegionTree")
+  @@index([kind, parentId])
+  @@map("regions")
+}
+
+model ShopService {
+  id           BigInt           @id @default(autoincrement())
+  shopId       BigInt           @map("shop_id")
+  name         String           @db.VarChar(200)
+  nameEn       String?          @map("name_en") @db.VarChar(200)
+  category     ServiceCategory
+  durationKind String @default("TIMED") @map("duration_kind") @db.VarChar(20)
+  durationMin  Int              @map("duration_min")
+  priceCents   Int              @map("price_cents")
+  priceBasis   String           @default("PER_BOOKING") @map("price_basis") @db.VarChar(20)
+  participantCount Int @default(1) @map("participant_count")
+  requiredStaffCount Int @default(1) @map("required_staff_count")
+  requiredRoomType String? @map("required_room_type") @db.VarChar(20)
+  staffBufferMin Int @default(0) @map("staff_buffer_min")
+  roomBufferMin Int @default(0) @map("room_buffer_min")
+  description  String?          @db.Text
+  isActive     Boolean          @default(true) @map("is_active")
+  sortOrder    Int              @default(0) @map("sort_order")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  shop               Shop                @relation(fields: [shopId], references: [id])
+  therapistServices  TherapistService[]
+  bookings           Booking[]
+  variants ShopServiceVariant[]
+  bookingItems BookingItem[]
+  addOns ShopServiceAddOn[]
+
+  @@index([shopId, isActive])
+  @@index([category])
+  @@map("shop_services")
+}
+
+model Therapist {
+  id         BigInt   @id @default(autoincrement())
+  shopId     BigInt   @map("shop_id")
+  name       String   @db.VarChar(100)
+  avatarUrl  String?  @map("avatar_url") @db.VarChar(500)
+  title      String?  @db.VarChar(100)
+  bio        String?  @db.Text
+  yearsExp   Int      @default(0) @map("years_exp")
+  gender     String?  @db.VarChar(10)
+  isActive   Boolean  @default(true) @map("is_active")
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  shop               Shop                @relation(fields: [shopId], references: [id])
+  therapistServices  TherapistService[]
+  bookings           Booking[]
+  assignedItems      BookingItem[] @relation("AssignedItemTherapist")
+  scheduleMode String @default("SHOP") @map("schedule_mode") @db.VarChar(20)
+  shifts TherapistShift[]
+  timeOff TherapistTimeOff[]
+
+  @@index([shopId, isActive])
+  @@map("therapists")
+}
+
+model TherapistService {
+  therapistId BigInt @map("therapist_id")
+  serviceId   BigInt @map("service_id")
+
+  therapist Therapist   @relation(fields: [therapistId], references: [id])
+  service   ShopService @relation(fields: [serviceId], references: [id])
+
+  @@id([therapistId, serviceId])
+  @@map("therapist_services")
+}
+
+model Booking {
+  id                BigInt         @id @default(autoincrement())
+  bookingNo         String         @unique @map("booking_no") @db.VarChar(30)
+  userId            BigInt?        @map("user_id")
+  shopId            BigInt         @map("shop_id")
+  bookingSource     String         @default("ONLINE") @map("booking_source") @db.VarChar(30)
+  assistedById      BigInt?        @map("assisted_by_id")
+  guestSource       String?        @map("guest_source") @db.VarChar(20)
+  contactName       String?        @map("contact_name") @db.VarChar(100)
+  contactPhone      String?        @map("contact_phone") @db.VarChar(16)
+  contactEmail      String?        @map("contact_email") @db.VarChar(255)
+  contactVersion    Int?           @map("contact_version")
+  contactSource     String?        @map("contact_source") @db.VarChar(40)
+  contactEmailVerifiedAt DateTime? @map("contact_email_verified_at")
+  therapistId       BigInt?        @map("therapist_id")
+  serviceId         BigInt         @map("service_id")
+  bookingDate       DateTime       @map("booking_date")
+  bookingTimezone   String?        @map("booking_timezone") @db.VarChar(80)
+  startTime         DateTime       @map("start_time")
+  endTime           DateTime       @map("end_time")
+  durationMin       Int            @map("duration_min")
+  priceCents        Int            @map("price_cents")
+  discountCents     Int            @default(0) @map("discount_cents")
+  platformFeeCents  Int            @default(0) @map("platform_fee_cents")
+  tipCents          Int            @default(0) @map("tip_cents")
+  participantCountSnapshot Int @default(1) @map("participant_count_snapshot")
+  requiredStaffCountSnapshot Int @default(1) @map("required_staff_count_snapshot")
+  reservationKind   String         @default("SINGLE") @map("reservation_kind") @db.VarChar(20)
+  therapistSelectionMode String @default("LEGACY_UNKNOWN") @map("therapist_selection_mode") @db.VarChar(20)
+  requestedTherapistIds Json? @map("requested_therapist_ids")
+  totalCents        Int            @default(0) @map("total_cents")
+  paidCents         Int            @default(0) @map("paid_cents")
+  refundedCents     Int            @default(0) @map("refunded_cents")
+  currency          String         @default("usd") @db.VarChar(3)
+  couponId          BigInt?        @map("coupon_id")
+  status            BookingStatus  @default(PENDING)
+  cancelReason      String?        @map("cancel_reason") @db.VarChar(500)
+  paymentId         String?        @map("payment_id") @db.VarChar(255)
+  paymentStatus     PaymentStatus  @default(UNPAID) @map("payment_status")
+  paymentMode       String         @default("ONLINE") @map("payment_mode") @db.VarChar(20)
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestHash String? @map("request_hash") @db.Char(64)
+  holdExpiresAt DateTime? @map("hold_expires_at")
+  notes             String?        @db.Text
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  deletedAt         DateTime?      @map("deleted_at")
+  // Customer list preference only; never a merchant/financial lifecycle delete.
+  customerHiddenAt  DateTime?      @map("customer_hidden_at")
+
+  user      User?       @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assistedBy User?      @relation("BookingAssistedBy", fields: [assistedById], references: [id], onDelete: Restrict)
+  shop      Shop        @relation(fields: [shopId], references: [id])
+  therapist Therapist?  @relation(fields: [therapistId], references: [id])
+  service   ShopService @relation(fields: [serviceId], references: [id])
+  coupon    Coupon?     @relation(fields: [couponId], references: [id])
+  userCoupon UserCoupon?
+  review    Review?
+  payments PaymentRecord[]
+  refunds RefundRequest[]
+  items BookingItem[]
+  addOns BookingAddOn[]
+  afterSalesCases AfterSalesCase[]
+  settlementEntries BookingSettlementEntry[]
+  resourceLocks BookingResourceLock[]
+  guestOperation GuestBookingOperation?
+
+  @@unique([userId, requestKey], map: "bookings_user_request_key")
+  @@index([shopId, assistedById, requestKey], map: "bookings_assisted_request_key")
+  @@index([status, paymentStatus, holdExpiresAt], map: "bookings_hold_expiry_idx")
+  @@index([userId, status])
+  @@index([shopId, status])
+  @@index([bookingDate])
+  @@index([bookingNo])
+  @@index([paymentStatus])
+  @@index([couponId])
+  @@map("bookings")
+}
+
+// Guest creation result/fence is scoped to the current authorized operator.
+// Contact and command bodies never appear in this table.
+model GuestBookingOperation {
+  id BigInt @id @default(autoincrement())
+  shopId BigInt @map("shop_id")
+  operatorId BigInt @map("operator_id")
+  requestKey String @map("request_key") @db.VarChar(36)
+  requestHash String @map("request_hash") @db.Char(64)
+  outcome String @db.VarChar(20)
+  bookingId BigInt? @unique @map("booking_id")
+  bookingNo String? @map("booking_no") @db.VarChar(30)
+  createdAt DateTime @default(now()) @map("created_at")
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  operator User @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  @@unique([shopId, operatorId, requestKey], map: "guest_booking_operations_actor_key")
+  @@map("guest_booking_operations")
+}
+
+model Review {
+  id           BigInt   @id @default(autoincrement())
+  bookingId    BigInt   @unique @map("booking_id")
+  userId       BigInt   @map("user_id")
+  shopId       BigInt   @map("shop_id")
+  rating       Int
+  content      String?  @db.Text
+  images       Json?
+  isPublic     Boolean  @default(true) @map("is_public")
+  isFlagged    Boolean  @default(false) @map("is_flagged")
+  replyContent String?  @map("reply_content") @db.Text
+  repliedAt    DateTime? @map("replied_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  shop    Shop    @relation(fields: [shopId], references: [id])
+
+  @@index([shopId, isPublic])
+  @@index([userId])
+  @@map("reviews")
+}
+
+model UserFavorite {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  shopId    BigInt   @map("shop_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, shopId])
+  @@index([userId])
+  @@index([shopId])
+  @@map("user_favorites")
+}
+
+model ShopImage {
+  id        BigInt    @id @default(autoincrement())
+  shopId    BigInt    @map("shop_id")
+  imageUrl  String    @map("image_url") @db.VarChar(500)
+  imageType ImageType @default(STORE_FRONT) @map("image_type")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  shop Shop @relation(fields: [shopId], references: [id])
+
+  @@index([shopId])
+  @@map("shop_images")
+}
+
+model ShopCertificate {
+  id               BigInt    @id @default(autoincrement())
+  shopId           BigInt    @map("shop_id")
+  certificateType  CertType  @default(MASSAGE_LICENSE) @map("certificate_type")
+  fileUrl          String    @map("file_url") @db.VarChar(500)
+  expiryDate       DateTime? @map("expiry_date")
+  isVerified       Boolean   @default(false) @map("is_verified")
+  verifiedAt       DateTime? @map("verified_at")
+  verifiedBy       BigInt?   @map("verified_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  shop Shop @relation(fields: [shopId], references: [id])
+
+  @@index([shopId])
+  @@map("shop_certificates")
+}
+
+model MerchantProfile {
+  id                BigInt   @id @default(autoincrement())
+  userId            BigInt   @map("user_id")
+  shopId            BigInt   @unique @map("shop_id")
+  stripeAccountId   String?  @map("stripe_account_id") @db.VarChar(255)
+  stripeOnboarding  Boolean  @default(false) @map("stripe_onboarding")
+  payoutMethod      String?  @map("payout_method") @db.VarChar(50)
+  payoutSchedule    String   @default("weekly") @map("payout_schedule")
+  balanceCents      Int      @default(0) @map("balance_cents")
+  pendingCents      Int      @default(0) @map("pending_cents")
+  totalEarnedCents  Int      @default(0) @map("total_earned_cents")
+  taxId             String?  @map("tax_id") @db.VarChar(50)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user         User                  @relation(fields: [userId], references: [id])
+  shop         Shop                  @relation(fields: [shopId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  transactions MerchantTransaction[]
+
+  @@index([userId])
+  @@map("merchant_profiles")
+}
+
+model MerchantTransaction {
+  id          BigInt   @id @default(autoincrement())
+  profileId   BigInt   @map("profile_id")
+  type        String   @db.VarChar(20)   // PAYMENT | PAYOUT | REFUND
+  amount      Int                         // positive for credit, negative for debit
+  fee         Int      @default(0)
+  net         Int      @default(0)
+  status      String   @db.VarChar(20)   // COMPLETED | PENDING | FAILED
+  bookingId   BigInt?  @map("booking_id")
+  description String?  @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  profile MerchantProfile @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, createdAt])
+  @@map("merchant_transactions")
+}
+
+model SensitiveWord {
+  id        BigInt   @id @default(autoincrement())
+  word      String   @unique @db.VarChar(200)
+  category  String   @default("DEFAULT") @db.VarChar(20) // DANGER | POLITICAL | AD | SPAM | DEFAULT
+  severity  String   @default("HIGH") @db.VarChar(10)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdBy BigInt?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  hitLogs  SensitiveHitLog[]
+
+  @@index([word])
+  @@index([isActive])
+  @@map("sensitive_words")
+}
+
+model SensitiveHitLog {
+  id         BigInt   @id @default(autoincrement())
+  wordId     BigInt   @map("word_id")
+  word       String   @db.VarChar(200) // denormalized for query speed
+  targetType String   @map("target_type") @db.VarChar(20) // SHOP | SERVICE | REVIEW | PROFILE
+  targetId   BigInt   @map("target_id")
+  content    String   @db.VarChar(200) // snippet, max 200 chars
+  userId     BigInt   @map("user_id")
+  blocked    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  wordRef   SensitiveWord @relation(fields: [wordId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@index([wordId])
+  @@map("sensitive_hit_logs")
+}
+
+model AuditLog {
+  id          BigInt   @id @default(autoincrement())
+  action      String   @db.VarChar(100)
+  targetType  String   @map("target_type") @db.VarChar(50)
+  targetId    BigInt   @map("target_id")
+  operatorId  BigInt   @map("operator_id")
+  detail      Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  operator   User @relation(fields: [operatorId], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([operatorId])
+  @@map("audit_logs")
+}
+
+model PlatformConfig {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique @db.VarChar(100)
+  value       String   @db.Text
+  type        String   @default("STRING") // STRING | NUMBER | BOOLEAN | JSON
+  description String?  @db.Text
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([key])
+  @@index([isPublic])
+  @@map("platform_configs")
+}
+
+model Category {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  nameEn    String?  @map("name_en") @db.VarChar(100)
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("categories")
+}
+
+model Announcement {
+  id        BigInt   @id @default(autoincrement())
+  title     String   @db.VarChar(500)
+  content   String   @db.Text
+  type      String   @default("INFO") @db.VarChar(20)    // INFO | IMPORTANT | URGENT
+  scope     String   @default("ALL") @db.VarChar(20)      // ALL | USERS | MERCHANTS
+  isActive  Boolean  @default(true)
+  startAt   DateTime @default(now()) @map("start_at")
+  endAt     DateTime? @map("end_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([isActive, startAt, endAt])
+  @@map("announcements")
+}
+
+model HomeBanner {
+  id          BigInt    @id @default(autoincrement())
+  title       String    @db.VarChar(200)
+  imageUrl    String    @map("image_url") @db.VarChar(500)
+  targetType  String    @default("NONE") @map("target_type") @db.VarChar(30) // NONE | SHOP_DETAIL | CATEGORY | COUPON_CENTER | EXTERNAL_URL
+  targetValue String?   @map("target_value") @db.VarChar(255)
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  startAt     DateTime  @default(now()) @map("start_at")
+  endAt       DateTime? @map("end_at")
+  clickCount  Int       @default(0) @map("click_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@index([startAt, endAt])
+  @@map("home_banners")
+}
+
+enum CouponType {
+  FIXED_AMOUNT
+  PERCENT
+}
+
+enum CouponStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  EXPIRED
+}
+
+enum UserCouponStatus {
+  UNUSED
+  USED
+  EXPIRED
+}
+
+model Coupon {
+  id             BigInt       @id @default(autoincrement())
+  shopId         BigInt?      @map("shop_id")           // null = platform-wide coupon
+  title          String       @db.VarChar(200)
+  description    String?      @db.VarChar(500)
+  type           CouponType
+  value          Int                                     // fixed cents or percent value
+  minSpendCents  Int          @default(0) @map("min_spend_cents")
+  totalQuantity  Int          @default(0) @map("total_quantity")     // 0 = unlimited
+  claimedCount   Int          @default(0) @map("claimed_count")
+  usedCount      Int          @default(0) @map("used_count")
+  perUserLimit   Int          @default(1) @map("per_user_limit")
+  validFrom      DateTime     @default(now()) @map("valid_from")
+  validUntil     DateTime?    @map("valid_until")
+  status         CouponStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  deletedAt      DateTime?    @map("deleted_at")
+
+  shop        Shop?         @relation(fields: [shopId], references: [id])
+  bookings    Booking[]
+  userCoupons UserCoupon[]
+
+  @@index([shopId, status])
+  @@index([status, validFrom, validUntil])
+  @@index([claimedCount])
+  @@map("coupons")
+}
+
+model UserCoupon {
+  id        BigInt           @id @default(autoincrement())
+  userId    BigInt           @map("user_id")
+  couponId  BigInt           @map("coupon_id")
+  status    UserCouponStatus @default(UNUSED)
+  claimedAt DateTime         @default(now()) @map("claimed_at")
+  usedAt    DateTime?        @map("used_at")
+  expiredAt DateTime?        @map("expired_at")
+  bookingId BigInt?          @unique @map("booking_id")
+
+  user    User     @relation(fields: [userId], references: [id])
+  coupon  Coupon   @relation(fields: [couponId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+
+  @@unique([userId, couponId])
+  @@index([userId, status])
+  @@index([couponId])
+  @@map("user_coupons")
+}
+
+// Product, sale, entitlement and redemption are separate records. No card data is stored.
+model GiftCardProduct {
+  id BigInt @id @default(autoincrement())
+  shopId BigInt @map("shop_id")
+  title String @db.VarChar(200)
+  description String? @db.Text
+  priceCents Int @map("price_cents")
+  useTimes Int @default(1) @map("use_times")
+  expireDays Int @default(365) @map("expire_days")
+  status String @default("DRAFT") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  shop Shop @relation(fields: [shopId], references: [id])
+  orders GiftCardOrder[]
+  rights GiftCardEntitlement[]
+  @@index([shopId, status])
+  @@map("gift_card_products")
+}
+
+model GiftCardOrder {
+  id BigInt @id @default(autoincrement())
+  orderNo String @unique @map("order_no") @db.VarChar(40)
+  userId BigInt @map("user_id")
+  shopId BigInt @map("shop_id")
+  productId BigInt @map("product_id")
+  amountCents Int @map("amount_cents")
+  paidCents Int @default(0) @map("paid_cents")
+  refundedCents Int @default(0) @map("refunded_cents")
+  paymentMethod String @default("LEGACY") @map("payment_method") @db.VarChar(20)
+  status String @default("PENDING") @db.VarChar(20)
+  providerPaymentId String? @unique @map("provider_payment_id") @db.VarChar(255)
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestHash String? @map("request_hash") @db.Char(64)
+  productTitleSnapshot String? @map("product_title_snapshot") @db.VarChar(200)
+  useTimesSnapshot Int? @map("use_times_snapshot")
+  expireDaysSnapshot Int? @map("expire_days_snapshot")
+  currency String @default("usd") @db.VarChar(3)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user User @relation(fields: [userId], references: [id])
+  shop Shop @relation(fields: [shopId], references: [id])
+  product GiftCardProduct @relation(fields: [productId], references: [id])
+  rights GiftCardEntitlement[]
+  saleEntries GiftCardSaleEntry[]
+  @@index([shopId, createdAt])
+  @@index([userId, status])
+  @@unique([userId, requestKey], map: "gift_orders_user_request_key")
+  @@map("gift_card_orders")
+}
+
+model GiftCardEntitlement {
+  id String @id @default(uuid()) @db.VarChar(36)
+  userId BigInt @map("user_id")
+  shopId BigInt @map("shop_id")
+  productId BigInt @map("product_id")
+  orderId BigInt? @map("order_id")
+  purchaseKey String? @unique @map("purchase_key") @db.Char(64)
+  tokenHash String @unique @map("token_hash") @db.VarChar(64)
+  totalUses Int @map("total_uses")
+  remainingUses Int @map("remaining_uses")
+  expiresAt DateTime @map("expires_at")
+  status String @default("ACTIVE") @db.VarChar(20)
+  grantReason String? @map("grant_reason") @db.VarChar(500)
+  source String @default("LEGACY") @db.VarChar(20)
+  productTitleSnapshot String? @map("product_title_snapshot") @db.VarChar(200)
+  grantKey String? @unique @map("grant_key") @db.Char(64)
+  grantHash String? @map("grant_hash") @db.Char(64)
+  grantedById BigInt? @map("granted_by_id")
+  voucherExpiresAt DateTime? @map("voucher_expires_at")
+  voucherUses Int? @map("voucher_uses")
+  voidedAt DateTime? @map("voided_at")
+  voidedById BigInt? @map("voided_by_id")
+  voidReason String? @map("void_reason") @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id])
+  shop Shop @relation(fields: [shopId], references: [id])
+  product GiftCardProduct @relation(fields: [productId], references: [id])
+  order GiftCardOrder? @relation(fields: [orderId], references: [id])
+  redemptions GiftCardRedemption[]
+  @@index([userId, status])
+  @@index([shopId])
+  @@map("gift_card_entitlements")
+}
+
+model GiftCardRedemption {
+  id String @id @default(uuid()) @db.VarChar(36)
+  entitlementId String @map("entitlement_id") @db.VarChar(36)
+  operatorId BigInt @map("operator_id")
+  idempotencyKey String @unique @map("idempotency_key") @db.VarChar(100)
+  usedUses Int @map("used_uses")
+  shopId BigInt? @map("shop_id")
+  requestHash String? @map("request_hash") @db.Char(64)
+  createdAt DateTime @default(now()) @map("created_at")
+  entitlement GiftCardEntitlement @relation(fields: [entitlementId], references: [id])
+  operator User @relation(fields: [operatorId], references: [id])
+  @@index([entitlementId, createdAt])
+  @@map("gift_card_redemptions")
+}
+
+// A support case records decisions; only a verified RefundRequest records money movement.
+model AfterSalesCase {
+  id BigInt @id @default(autoincrement())
+  bookingId BigInt @map("booking_id")
+  shopId BigInt @map("shop_id")
+  customerId BigInt @map("customer_id")
+  activeBookingId BigInt? @unique @map("active_booking_id")
+  type String @db.VarChar(20)
+  status String @default("OPEN") @db.VarChar(20)
+  reason String @db.Text
+  requestedAmountCents Int? @map("requested_amount_cents")
+  currency String @db.VarChar(3)
+  assignedToId BigInt? @map("assigned_to_id")
+  acceptedAt DateTime? @map("accepted_at")
+  version Int @default(1)
+  refundKey String? @unique @map("refund_key") @db.VarChar(80)
+  refundState String @default("NONE") @map("refund_state") @db.VarChar(20)
+  refundRequestId String? @unique @map("refund_request_id") @db.VarChar(36)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  closedAt DateTime? @map("closed_at")
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  customer User @relation("AfterSalesCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  assignedTo User? @relation("AfterSalesAssigned", fields: [assignedToId], references: [id], onDelete: Restrict)
+  refundRequest RefundRequest? @relation(fields: [refundRequestId], references: [id], onDelete: Restrict)
+  events AfterSalesEvent[]
+  @@index([shopId, status, createdAt])
+  @@index([customerId, status, createdAt])
+  @@index([bookingId])
+  @@map("after_sales_cases")
+}
+
+model AfterSalesEvent {
+  id BigInt @id @default(autoincrement())
+  caseId BigInt @map("case_id")
+  actorId BigInt @map("actor_id")
+  kind String @db.VarChar(40)
+  visibility String @db.VarChar(10)
+  content String? @db.Text
+  fromStatus String? @map("from_status") @db.VarChar(20)
+  toStatus String? @map("to_status") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  case AfterSalesCase @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  actor User @relation("AfterSalesActor", fields: [actorId], references: [id], onDelete: Restrict)
+  @@index([caseId, id])
+  @@map("after_sales_events")
+}
+
+// Booking resources are additive: no historical booking or financial record is rewritten.
+model ShopServiceVariant {
+  id BigInt @id @default(autoincrement())
+  serviceId BigInt @map("service_id")
+  name String @db.VarChar(100)
+  durationMin Int @map("duration_min")
+  priceCents Int @map("price_cents")
+  priceBasis String @default("PER_BOOKING") @map("price_basis") @db.VarChar(20)
+  currency String @default("usd") @db.VarChar(3)
+  isActive Boolean @default(true) @map("is_active")
+  sortOrder Int @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  service ShopService @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  bookingItems BookingItem[]
+  @@index([serviceId, isActive, sortOrder], map: "service_variants_service_active_sort_idx")
+  @@map("shop_service_variants")
+}
+
+// Optional paid extras belong to an existing primary service. They never carry
+// appointment duration or independent staff/room allocation.
+model ShopServiceAddOn {
+  id BigInt @id @default(autoincrement())
+  serviceId BigInt @map("service_id")
+  name String @db.VarChar(100)
+  description String? @db.VarChar(1000)
+  priceCents Int @map("price_cents")
+  currency String @default("usd") @db.VarChar(3)
+  isActive Boolean @default(false) @map("is_active")
+  sortOrder Int @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  service ShopService @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  bookingAddOns BookingAddOn[]
+  @@index([serviceId, isActive, sortOrder], map: "service_addons_service_active_sort_idx")
+  @@map("shop_service_addons")
+}
+
+// Immutable quoted extras attached to a specific primary participant/segment.
+// Later configuration changes never rewrite these historical prices or names.
+model BookingAddOn {
+  id BigInt @id @default(autoincrement())
+  bookingId BigInt @map("booking_id")
+  bookingItemId BigInt @map("booking_item_id")
+  sourceAddOnId BigInt @map("source_addon_id")
+  participantIndex Int @map("participant_index")
+  sequence Int
+  nameSnapshot String @map("name_snapshot") @db.VarChar(100)
+  unitPriceCentsSnapshot Int @map("unit_price_cents_snapshot")
+  quantity Int @default(1)
+  lineTotalCentsSnapshot Int @map("line_total_cents_snapshot")
+  currency String @db.VarChar(3)
+  createdAt DateTime @default(now()) @map("created_at")
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  bookingItem BookingItem @relation(fields: [bookingItemId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sourceAddOn ShopServiceAddOn @relation(fields: [sourceAddOnId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([bookingItemId, sourceAddOnId], map: "booking_addons_item_source_key")
+  @@index([bookingId], map: "booking_addons_booking_idx")
+  @@index([sourceAddOnId], map: "booking_addons_source_idx")
+  @@map("booking_addons")
+}
+
+model TherapistShift {
+  id BigInt @id @default(autoincrement())
+  therapistId BigInt @map("therapist_id")
+  weekday Int
+  startMin Int @map("start_min")
+  endMin Int @map("end_min")
+  isActive Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  therapist Therapist @relation(fields: [therapistId], references: [id], onDelete: Restrict)
+  @@index([therapistId, weekday, isActive], map: "therapist_shifts_day_active_idx")
+  @@map("therapist_shifts")
+}
+
+model TherapistTimeOff {
+  id BigInt @id @default(autoincrement())
+  therapistId BigInt @map("therapist_id")
+  startAtUtc DateTime @map("start_at_utc")
+  endAtUtc DateTime @map("end_at_utc")
+  reason String? @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  therapist Therapist @relation(fields: [therapistId], references: [id], onDelete: Restrict)
+  calendarBlock ShopCalendarBlock?
+  @@index([therapistId, startAtUtc, endAtUtc], map: "therapist_time_off_window_idx")
+  @@map("therapist_time_off")
+}
+
+model ShopRoom {
+  id BigInt @id @default(autoincrement())
+  shopId BigInt @map("shop_id")
+  name String @db.VarChar(100)
+  roomType String @map("room_type") @db.VarChar(20)
+  capacity Int @default(1)
+  isActive Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  maintenance RoomMaintenance[]
+  bookingItems BookingItem[]
+  @@index([shopId, roomType, isActive], map: "shop_rooms_type_active_idx")
+  @@map("shop_rooms")
+}
+
+model RoomMaintenance {
+  id BigInt @id @default(autoincrement())
+  roomId BigInt @map("room_id")
+  startAtUtc DateTime @map("start_at_utc")
+  endAtUtc DateTime @map("end_at_utc")
+  reason String? @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  room ShopRoom @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  calendarBlock ShopCalendarBlock?
+  @@index([roomId, startAtUtc, endAtUtc], map: "room_maintenance_window_idx")
+  @@map("room_maintenance")
+}
+
+// Calendar-only occupation. Resource scopes reuse existing time-off/maintenance;
+// only SHOP rows are consumed directly by shared booking availability.
+model ShopCalendarBlock {
+  id BigInt @id @default(autoincrement())
+  shopId BigInt @map("shop_id")
+  scope String @db.VarChar(20)
+  resourceId BigInt? @map("resource_id")
+  purpose String @db.VarChar(30)
+  startAtUtc DateTime @map("start_at_utc")
+  endAtUtc DateTime @map("end_at_utc")
+  timezone String @db.VarChar(100)
+  reason String @db.VarChar(500)
+  status String @default("ACTIVE") @db.VarChar(20)
+  version Int @default(1)
+  operatorId BigInt @map("operator_id")
+  timeOffId BigInt? @unique @map("time_off_id")
+  maintenanceId BigInt? @unique @map("maintenance_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  operator User @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  timeOff TherapistTimeOff? @relation(fields: [timeOffId], references: [id], onDelete: SetNull)
+  maintenance RoomMaintenance? @relation(fields: [maintenanceId], references: [id], onDelete: SetNull)
+  @@index([shopId, status, startAtUtc, endAtUtc], map: "calendar_blocks_shop_window_idx")
+  @@index([shopId, scope, resourceId, status], map: "calendar_blocks_resource_idx")
+  @@map("shop_calendar_blocks")
+}
+
+// Immutable operation result; intentionally excludes raw reason/contact data.
+model CalendarActionReceipt {
+  id BigInt @id @default(autoincrement())
+  shopId BigInt @map("shop_id")
+  operatorId BigInt @map("operator_id")
+  requestKey String @map("request_key") @db.VarChar(36)
+  requestHash String @map("request_hash") @db.Char(64)
+  outcome String @default("COMMITTED") @db.VarChar(20)
+  action String @db.VarChar(20)
+  blockId BigInt? @map("block_id")
+  blockVersion Int? @map("block_version")
+  closedDate String? @map("closed_date") @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  operator User @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  @@unique([shopId, operatorId, requestKey], map: "calendar_action_receipts_actor_key")
+  @@map("calendar_action_receipts")
+}
+
+model BookingItem {
+  id BigInt @id @default(autoincrement())
+  bookingId BigInt @map("booking_id")
+  serviceId BigInt @map("service_id")
+  variantId BigInt? @map("variant_id")
+  participantIndex Int @map("participant_index")
+  sequence Int @default(1)
+  offsetMin Int @default(0) @map("offset_min")
+  priceBasisSnapshot String @default("PER_PERSON") @map("price_basis_snapshot") @db.VarChar(20)
+  quotedUnitPriceCents Int? @map("quoted_unit_price_cents")
+  requiredStaffCountSnapshot Int @default(1) @map("required_staff_count_snapshot")
+  assignedTherapistId BigInt? @map("assigned_therapist_id")
+  therapistSelectionMode String @default("LEGACY_UNKNOWN") @map("therapist_selection_mode") @db.VarChar(20)
+  requestedTherapistIds Json? @map("requested_therapist_ids")
+  serviceNameSnapshot String @map("service_name_snapshot") @db.VarChar(200)
+  durationKindSnapshot String @default("TIMED") @map("duration_kind_snapshot") @db.VarChar(20)
+  variantNameSnapshot String? @map("variant_name_snapshot") @db.VarChar(100)
+  roomTypeSnapshot String? @map("room_type_snapshot") @db.VarChar(20)
+  durationMin Int @map("duration_min")
+  staffBufferMin Int @map("staff_buffer_min")
+  roomBufferMin Int @map("room_buffer_min")
+  priceCentsSnapshot Int @map("price_cents_snapshot")
+  currency String @db.VarChar(3)
+  assignedRoomId BigInt? @map("assigned_room_id")
+  startAtUtc DateTime @map("start_at_utc")
+  endAtUtc DateTime @map("end_at_utc")
+  createdAt DateTime @default(now()) @map("created_at")
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  service ShopService @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  variant ShopServiceVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  assignedRoom ShopRoom? @relation(fields: [assignedRoomId], references: [id], onDelete: Restrict)
+  assignedTherapist Therapist? @relation("AssignedItemTherapist", fields: [assignedTherapistId], references: [id], onDelete: Restrict)
+  resourceLocks BookingResourceLock[]
+  addOns BookingAddOn[]
+  @@unique([bookingId, participantIndex, sequence], map: "booking_items_participant_sequence_key")
+  @@index([serviceId], map: "booking_items_service_idx")
+  @@index([variantId], map: "booking_items_variant_idx")
+  @@index([assignedRoomId], map: "booking_items_room_idx")
+  @@index([assignedTherapistId], map: "booking_items_assigned_therapist_idx")
+  @@map("booking_items")
+}
+
+model BookingResourceLock {
+  id BigInt @id @default(autoincrement())
+  bookingId BigInt @map("booking_id")
+  bookingItemId BigInt? @map("booking_item_id")
+  shopId BigInt @map("shop_id")
+  resourceType String @map("resource_type") @db.VarChar(20)
+  resourceId BigInt @map("resource_id")
+  startAtUtc DateTime @map("start_at_utc")
+  endAtUtc DateTime @map("end_at_utc")
+  status String @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  bookingItem BookingItem? @relation(fields: [bookingItemId], references: [id], onDelete: Restrict)
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  @@index([shopId, resourceType, status, startAtUtc, endAtUtc], map: "booking_resources_overlap_idx")
+  @@index([resourceType, resourceId, status, startAtUtc, endAtUtc], map: "booking_resource_window_idx")
+  @@index([bookingId, status], map: "booking_resources_booking_idx")
+  @@index([bookingItemId], map: "booking_resources_item_idx")
+  @@map("booking_resource_locks")
+}
+
+model ShopStaffGrant {
+  id BigInt @id @default(autoincrement())
+  shopId BigInt @map("shop_id")
+  userId BigInt @map("user_id")
+  createdById BigInt @map("created_by_id")
+  permissions Json
+  status String @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  revokedAt DateTime? @map("revoked_at")
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  user User @relation("StaffUser", fields: [userId], references: [id], onDelete: Restrict)
+  createdBy User @relation("StaffGrantCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  @@unique([shopId, userId])
+  @@index([userId, status])
+  @@index([createdById])
+  @@map("shop_staff_grants")
+}
+
+// Login identity is independent of the historical financial/operating owner.
+// No legacy owner-to-shop binding is inferred by migration.
+model ShopLoginBinding {
+  id BigInt @id @default(autoincrement())
+  shopId BigInt @unique @map("shop_id")
+  userId BigInt @unique @map("user_id")
+  createdById BigInt @map("created_by_id")
+  reason String @db.VarChar(1000)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  user User @relation("ShopLoginAccount", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy User @relation("ShopLoginBindingCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@index([createdById])
+  @@map("shop_login_bindings")
+}
+
+// Directed, company-configured access. No transitive grants or owner powers.
+model ShopAccountGrant {
+  id BigInt @id @default(autoincrement())
+  sourceShopId BigInt @map("source_shop_id")
+  targetShopId BigInt @map("target_shop_id")
+  permissions Json
+  status String @default("ACTIVE") @db.VarChar(20)
+  createdById BigInt @map("created_by_id")
+  updatedById BigInt @map("updated_by_id")
+  reason String @db.VarChar(1000)
+  revokedById BigInt? @map("revoked_by_id")
+  revokedReason String? @map("revoked_reason") @db.VarChar(1000)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  revokedAt DateTime? @map("revoked_at") @db.DateTime(3)
+  sourceShop Shop @relation("AccountGrantSource", fields: [sourceShopId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  targetShop Shop @relation("AccountGrantTarget", fields: [targetShopId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy User @relation("AccountGrantCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  updatedBy User @relation("AccountGrantUpdater", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revokedBy User? @relation("AccountGrantRevoker", fields: [revokedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([sourceShopId, targetShopId])
+  @@index([targetShopId, status])
+  @@index([sourceShopId, status])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([revokedById])
+  @@map("shop_account_grants")
+}
+
+// Add to User: notificationJobs NotificationOutbox[]; notifications UserNotification[]; notificationPreference NotificationPreference?
+model NotificationOutbox {
+  id String @id @db.Char(36)
+  eventKey String @map("event_key") @db.VarChar(160)
+  contentHash String @map("content_hash") @db.Char(64)
+  userId BigInt? @map("user_id")
+  topic String @db.VarChar(40)
+  resourceType String @map("resource_type") @db.VarChar(30)
+  resourceId String @map("resource_id") @db.VarChar(100)
+  bookingId BigInt? @map("booking_id")
+  expectedStartAtUtc DateTime? @map("expected_start_at_utc") @db.DateTime(3)
+  channel String @db.VarChar(10)
+  status String @default("PENDING") @db.VarChar(16)
+  runAt DateTime @map("run_at") @db.DateTime(3)
+  attempts Int @default(0)
+  retryCount Int @default(0) @map("retry_count")
+  maxAttempts Int @default(5) @map("max_attempts")
+  leaseToken String? @map("lease_token") @db.Char(36)
+  leaseUntil DateTime? @map("lease_until") @db.DateTime(3)
+  lastErrorCode String? @map("last_error_code") @db.VarChar(64)
+  acceptedCount Int @default(0) @map("accepted_count")
+  dataJson Json @map("data_json")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  finishedAt DateTime? @map("finished_at") @db.DateTime(3)
+  user User? @relation(fields:[userId], references:[id], onDelete: Cascade)
+  notification UserNotification?
+  @@unique([eventKey,channel])
+  @@index([status,runAt])
+  @@index([bookingId,topic,status])
+  @@map("notification_outbox")
+}
+
+model UserNotification {
+  id String @id @db.Char(36)
+  outboxId String @unique @map("outbox_id") @db.Char(36)
+  userId BigInt @map("user_id")
+  topic String @db.VarChar(40)
+  title String @db.VarChar(200)
+  body String @db.VarChar(1000)
+  resourceType String @map("resource_type") @db.VarChar(30)
+  resourceId String @map("resource_id") @db.VarChar(100)
+  bookingId BigInt? @map("booking_id")
+  readAt DateTime? @map("read_at") @db.DateTime(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  user User @relation(fields:[userId], references:[id], onDelete: Cascade)
+  outbox NotificationOutbox @relation(fields:[outboxId],references:[id],onDelete:Cascade)
+  @@index([userId,createdAt,id])
+  @@index([userId,readAt])
+  @@map("user_notifications")
+}
+
+model NotificationPreference {
+  userId BigInt @id @map("user_id")
+  pushEnabled Boolean @default(false) @map("push_enabled")
+  pushConsentedAt DateTime? @map("push_consented_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@map("notification_preferences")
+}
+
+// Sales are opt-in per shop. Missing policy never enables collection.
+model ShopGiftSalesPolicy {
+  shopId BigInt @id @map("shop_id")
+  payAtStoreEnabled Boolean @default(false) @map("pay_at_store_enabled")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  shop Shop @relation(fields:[shopId],references:[id],onDelete:Restrict)
+  @@map("shop_gift_sales_policies")
+}
+
+// Full offline receipt/refund evidence is append-only; never a provider settlement.
+model GiftCardSaleEntry {
+  id String @id @default(uuid()) @db.Char(36)
+  orderId BigInt @map("order_id")
+  operatorId BigInt @map("operator_id")
+  kind String @db.VarChar(10)
+  amountCents Int @map("amount_cents")
+  method String @db.VarChar(20)
+  reference String? @db.VarChar(100)
+  reason String @db.VarChar(500)
+  requestKey String @unique @map("request_key") @db.Char(64)
+  requestHash String @map("request_hash") @db.Char(64)
+  createdAt DateTime @default(now()) @map("created_at")
+  order GiftCardOrder @relation(fields:[orderId],references:[id],onDelete:Restrict)
+  operator User @relation(fields:[operatorId],references:[id],onDelete:Restrict)
+  @@unique([orderId,kind])
+  @@index([operatorId])
+  @@map("gift_card_sale_entries")
+}
+
+// Independent preservation area only. No live User/Shop/Booking/Payment relations.
+model LegacyStagingBatch {
+  id String @id @db.Char(64)
+  singleton Int @unique @default(1)
+  planDigest String @map("plan_digest") @db.Char(64)
+  sourceSystem String @map("source_system") @db.VarChar(32)
+  datasetKind String @map("dataset_kind") @db.VarChar(20)
+  summary Json
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  entities LegacyStagingEntity[]
+  @@map("legacy_staging_batches")
+}
+
+model LegacyStagingEntity {
+  id String @id @db.Char(64)
+  batchId String @map("batch_id") @db.Char(64)
+  sourceSystem String @map("source_system") @db.VarChar(32)
+  sourceTable String @map("source_table") @db.VarChar(63)
+  sourceId String @map("source_id") @db.VarChar(128)
+  kind String @db.VarChar(32)
+  shopKey String? @map("shop_key") @db.Char(64)
+  payload Json
+  payloadDigest String @map("payload_digest") @db.Char(64)
+  batch LegacyStagingBatch @relation(fields:[batchId],references:[id],onDelete:Restrict)
+  @@unique([sourceSystem,sourceTable,sourceId], map:"legacy_staging_source_identity")
+  @@index([batchId,kind], map:"legacy_staging_batch_kind_idx")
+  @@index([shopKey,kind], map:"legacy_staging_shop_kind_idx")
+  @@map("legacy_staging_entities")
+}
+
+
+model MediaAsset {
+  id String @id @db.Char(36)
+  ownerId BigInt @map("owner_id")
+  shopId BigInt? @map("shop_id")
+  shopOwnerId BigInt? @map("shop_owner_id")
+  scope String @db.VarChar(10)
+  purpose String @db.VarChar(10)
+  status String @db.VarChar(16)
+  requestKey String @map("request_key") @db.VarChar(80)
+  inputHash String @map("input_hash") @db.Char(64)
+  contentHash String @map("content_hash") @db.Char(64)
+  storageNamespace String @map("storage_namespace") @db.Char(64)
+  storageDriver String @map("storage_driver") @db.VarChar(10)
+  objectKey String @unique @map("object_key") @db.VarChar(100)
+  mimeType String @map("mime_type") @db.VarChar(30)
+  sizeBytes Int @map("size_bytes")
+  width Int
+  height Int
+  expiresAt DateTime @map("expires_at") @db.DateTime(3)
+  boundAt DateTime? @map("bound_at") @db.DateTime(3)
+  leaseToken String? @map("lease_token") @db.Char(36)
+  lastErrorCode String? @map("last_error_code") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  owner User @relation("MediaUploader",fields:[ownerId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+  shop Shop? @relation(fields:[shopId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+  @@unique([ownerId,requestKey])
+  @@index([status,expiresAt])
+  @@index([shopId,status])
+  @@map("media_assets")
+}
+
+model AuthProviderIdentity {
+  id String @id @default(uuid()) @db.VarChar(36)
+  userId BigInt @map("user_id")
+  provider String @db.VarChar(10)
+  subject String @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@unique([provider,subject])
+  @@index([userId])
+  @@map("auth_provider_identities")
+}
+model SocialLoginChallenge {
+  id String @id @default(uuid()) @db.VarChar(36)
+  provider String @db.VarChar(10)
+  nonceHash String @map("nonce_hash") @db.VarChar(64)
+  expiresAt DateTime @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([expiresAt])
+  @@map("social_login_challenges")
+}
+model EmailLoginChallenge {
+  id String @id @default(uuid()) @db.VarChar(36)
+  email String @db.VarChar(255)
+  codeHash String @map("code_hash") @db.VarChar(64)
+  deliveryState String @default("PENDING") @map("delivery_state") @db.VarChar(20)
+  attempts Int @default(0)
+  expiresAt DateTime @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([email,createdAt])
+  @@index([expiresAt])
+  @@map("email_login_challenges")
+}
+model EmailLoginThrottle {
+  email String @id @db.VarChar(255)
+  lastSentAt DateTime @map("last_sent_at")
+  windowStart DateTime @map("window_start")
+  sendCount Int @map("send_count")
+  @@map("email_login_throttles")
+}
+
+// Separate purpose and credential snapshot: ordinary sign-in proof cannot reset a password.
+model EmailPasswordRecoveryChallenge {
+  id String @id @default(uuid()) @db.VarChar(36)
+  userId BigInt @map("user_id")
+  email String @db.VarChar(255)
+  credentialHash String @map("credential_hash") @db.Char(64)
+  codeHash String @map("code_hash") @db.Char(64)
+  deliveryState String @default("PENDING") @map("delivery_state") @db.VarChar(20)
+  attempts Int @default(0)
+  expiresAt DateTime @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([userId,createdAt])
+  @@index([expiresAt])
+  @@map("email_password_recovery_challenges")
+}
+
+model CopyConfigOperation {
+  id String @id @db.VarChar(36)
+  actorId BigInt @map("actor_id")
+  sourceShopId BigInt @map("source_shop_id")
+  targetShopId BigInt @map("target_shop_id")
+  kind String @db.VarChar(20)
+  idempotencyKey String @map("idempotency_key") @db.VarChar(100)
+  requestHash String @map("request_hash") @db.Char(64)
+  result Json
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([actorId,idempotencyKey],map:"copy_config_actor_key")
+  @@index([targetShopId,createdAt],map:"copy_config_target_created_idx")
+  @@map("copy_config_operations")
+}
+
+// Atomic catalog append receipts, scoped to the authenticated actor and shop.
+// Contains IDs and result versions only, never raw input or contact information.
+model CatalogMutationOperation {
+  id String @id @db.VarChar(36)
+  actorId BigInt @map("actor_id")
+  shopId BigInt @map("shop_id")
+  action String @db.VarChar(32)
+  idempotencyKey String @map("idempotency_key") @db.VarChar(100)
+  requestHash String @map("request_hash") @db.Char(64)
+  result Json
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([actorId,idempotencyKey],map:"catalog_mutation_actor_key")
+  @@index([shopId,createdAt],map:"catalog_mutation_shop_created_idx")
+  @@map("catalog_mutation_operations")
+}
+
+// Immutable evidence of company-created login bindings. No raw request,
+// password, contact snapshot or authentication secret is retained here.
+model AccountProvisionOperation {
+  id String @id @db.VarChar(36)
+  actorId BigInt @map("actor_id")
+  shopId BigInt @map("shop_id")
+  userId BigInt @map("user_id")
+  idempotencyKey String @map("idempotency_key") @db.VarChar(100)
+  requestHash String @map("request_hash") @db.Char(64)
+  status String @default("APPLIED") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  actor User @relation("AccountProvisionActor",fields:[actorId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+  shop Shop @relation(fields:[shopId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+  user User @relation("AccountProvisionUser",fields:[userId],references:[id],onDelete:Restrict,onUpdate:Restrict)
+  @@unique([actorId,idempotencyKey],map:"account_provision_actor_key")
+  @@index([shopId,createdAt],map:"account_provision_shop_created_idx")
+  @@index([userId],map:"account_provision_user_idx")
+  @@map("account_provision_operations")
+}
+
+// Atomic command evidence only: no customer contact, password or raw payload.
+model BookingOperationReceipt {
+  id String @id @db.VarChar(36)
+  actorId BigInt @map("actor_id")
+  bookingId BigInt @map("booking_id")
+  shopId BigInt @map("shop_id")
+  requestKey String @map("request_key") @db.VarChar(100)
+  action String? @db.VarChar(40)
+  requestHash String? @map("request_hash") @db.Char(64)
+  outcome String @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([actorId,bookingId,requestKey],map:"booking_operation_actor_booking_key")
+  @@index([shopId,createdAt],map:"booking_operation_shop_created_idx")
+  @@map("booking_operation_receipts")
+}

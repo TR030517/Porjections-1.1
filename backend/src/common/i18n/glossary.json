@@ -1,0 +1,44 @@
+{
+  "service_names": {
+    "massage": { "en": "Massage", "zh": "按摩" },
+    "tui_na": { "en": "Tui Na", "zh": "推拿" },
+    "foot_massage": { "en": "Foot Massage", "zh": "足疗" },
+    "cupping": { "en": "Cupping", "zh": "拔罐" },
+    "scraping": { "en": "Scraping (Gua Sha)", "zh": "刮痧" },
+    "aromatherapy": { "en": "Aromatherapy", "zh": "香薰" },
+    "hot_stone": { "en": "Hot Stone Therapy", "zh": "热石疗法" },
+    "acupressure": { "en": "Acupressure", "zh": "穴位按压" },
+    "full_body": { "en": "Full Body Massage", "zh": "全身按摩" },
+    "back_neck_shoulder": { "en": "Back, Neck & Shoulder", "zh": "肩颈腰背" },
+    "head_massage": { "en": "Head Massage", "zh": "头部按摩" }
+  },
+  "therapist_titles": {
+    "senior": { "en": "Senior Therapist", "zh": "高级按摩师" },
+    "master": { "en": "Master Therapist", "zh": "大师级按摩师" },
+    "junior": { "en": "Junior Therapist", "zh": "初级按摩师" }
+  },
+  "common_terms": {
+    "booking": { "en": "Booking", "zh": "预约" },
+    "duration": { "en": "Duration", "zh": "时长" },
+    "price": { "en": "Price", "zh": "价格" },
+    "rating": { "en": "Rating", "zh": "评分" },
+    "reviews": { "en": "Reviews", "zh": "评价" },
+    "distance": { "en": "Distance", "zh": "距离" },
+    "status": { "en": "Status", "zh": "状态" },
+    "address": { "en": "Address", "zh": "地址" },
+    "phone": { "en": "Phone", "zh": "电话" },
+    "email": { "en": "Email", "zh": "邮箱" },
+    "notes": { "en": "Notes", "zh": "备注" },
+    "cancelled": { "en": "Cancelled", "zh": "已取消" },
+    "completed": { "en": "Completed", "zh": "已完成" },
+    "pending": { "en": "Pending", "zh": "待确认" },
+    "confirmed": { "en": "Confirmed", "zh": "已确认" }
+  },
+  "shop_categories": {
+    "TUINA": { "en": "Tui Na", "zh": "推拿" },
+    "FOOT_MASSAGE": { "en": "Foot Massage", "zh": "足疗" },
+    "CUPPING": { "en": "Cupping", "zh": "拔罐" },
+    "SCRAPING": { "en": "Scraping", "zh": "刮痧" },
+    "FULL_SERVICE": { "en": "Full Service", "zh": "综合服务" }
+  }
+}

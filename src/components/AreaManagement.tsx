@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, ChevronLeft, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { listResources, createResource, updateResource, deleteResource, ResourceId } from '../api/resources';
+
+import { useConfirmation } from './Confirmation';
 
 interface StateArea {
-  id: number;
+  id: ResourceId;
   abbr: string;
   english: string;
   chinese: string;
@@ -14,8 +17,9 @@ interface StateArea {
 }
 
 interface CityArea {
-  id: number;
-  stateId: number;
+  id: ResourceId;
+  abbr?: string;
+  stateId: ResourceId;
   english: string;
   chinese: string;
   status: '启用' | '禁用';
@@ -24,45 +28,57 @@ interface CityArea {
   sort: number;
 }
 
-// Global initial state data
-const initialStates: StateArea[] = [
-  { id: 54, abbr: 'AL', english: 'Alabama', chinese: '阿拉巴马州', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 55, abbr: 'AK', english: 'Alaska', chinese: '阿拉斯加州', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 56, abbr: 'AZ', english: 'Arizona', chinese: '亚利桑那州', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 59, abbr: 'AR', english: 'Arkansas', chinese: '阿肯色州', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 60, abbr: 'CA', english: 'California', chinese: '加利福尼亚', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 61, abbr: 'CO', english: 'Colorado', chinese: '科罗拉多', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 62, abbr: 'CT', english: 'Connecticut', chinese: '康涅狄格省', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 63, abbr: 'DE', english: 'Delaware', chinese: '特拉华', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 64, abbr: 'DC', english: 'District of Columbia', chinese: '哥伦比亚特区', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 65, abbr: 'FL', english: 'Florida', chinese: '佛罗里达', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 66, abbr: 'GA', english: 'Georgia', chinese: '佐治亚', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 67, abbr: 'HI', english: 'Hawaii', chinese: '夏威夷', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 68, abbr: 'ID', english: 'Idaho', chinese: '爱达荷', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 69, abbr: 'IL', english: 'Illinois', chinese: '伊利诺伊', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-  { id: 70, abbr: 'IN', english: 'Indiana', chinese: '印第安纳', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100 },
-];
+interface RegionRecord extends StateArea {
+  kind: 'state' | 'city';
+  parentId?: ResourceId;
+  stateId?: ResourceId;
+  zipCode?: string;
+}
 
-const initialCities: CityArea[] = [
-  { id: 3763, stateId: 54, english: 'Auburn', chinese: '奥本', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100, zipCode: '36830' },
-  { id: 3764, stateId: 54, english: 'Birmingham', chinese: '伯明翰', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100, zipCode: '35201' },
-  { id: 3765, stateId: 54, english: 'Dothan', chinese: '多森', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100, zipCode: '36301' },
-  { id: 3766, stateId: 54, english: 'Florence/Muscle Shoals', chinese: '弗洛伦萨/马斯尔肖尔斯', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100, zipCode: '35630' },
-  { id: 3767, stateId: 54, english: 'Gadsden-Anniston', chinese: '加兹登/安尼斯顿', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100, zipCode: '35901' },
-  { id: 3768, stateId: 54, english: 'Huntsville-Decatur', chinese: '亨茨维尔/迪凯特', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100, zipCode: '35801' },
-  { id: 3769, stateId: 54, english: 'Mobile', chinese: '莫比尔', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100, zipCode: '36601' },
-  { id: 3770, stateId: 54, english: 'Montgomery', chinese: '蒙哥马利', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100, zipCode: '36101' },
-  { id: 3771, stateId: 54, english: 'Tuscaloosa', chinese: '塔斯卡卢萨', status: '启用', updatedTime: '2025-05-28 14:43:49', sort: 100, zipCode: '35401' },
-];
+function toStateArea(item: RegionRecord): StateArea {
+  return { ...item, abbr: item.abbr || '' };
+}
+
+function toCityArea(item: RegionRecord): CityArea {
+  return { ...item, stateId: item.parentId ?? item.stateId ?? '' };
+}
 
 export default function AreaManagement() {
-  const [states, setStates] = useState<StateArea[]>(initialStates);
-  const [cities, setCities] = useState<CityArea[]>(initialCities);
+  const confirm = useConfirmation();
+  const [states, setStates] = useState<StateArea[]>([]);
+  const [cities, setCities] = useState<CityArea[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadRegions = async (signal?: AbortSignal) => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const items = await listResources<RegionRecord>('regions', { kind: currentView === 'states' ? 'state' : 'city', parentId: currentView === 'cities' ? selectedState?.id : undefined, search: keyword.trim() }, signal);
+      if (signal?.aborted) return;
+      if (currentView === 'states') setStates(items.map(toStateArea));
+      else setCities(items.map(toCityArea));
+    } catch (error) {
+      if (!signal?.aborted) { if (currentView === 'states') setStates([]); else setCities([]); setLoadError(error instanceof Error ? error.message : '地区数据加载失败，请重试。'); }
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  };
+
   const [currentView, setCurrentView] = useState<'states' | 'cities'>('states');
   const [selectedState, setSelectedState] = useState<StateArea | null>(null);
   
   // Search state
   const [keyword, setKeyword] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => void loadRegions(controller.signal), 250);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [currentView, selectedState?.id, keyword]);
 
   // Modals view controllers
   const [stateModalOpen, setStateModalOpen] = useState(false);
@@ -92,12 +108,14 @@ export default function AreaManagement() {
 
   // Handle Opening modas
   const openAddState = () => {
+    setFormError('');
     setEditingState(null);
     setStateForm({ abbr: '', chinese: '', english: '', sort: 100, status: '启用' });
     setStateModalOpen(true);
   };
 
   const openEditState = (stateArea: StateArea) => {
+    setFormError('');
     setEditingState(stateArea);
     setStateForm({
       abbr: stateArea.abbr,
@@ -110,15 +128,17 @@ export default function AreaManagement() {
   };
 
   const openAddCity = () => {
+    setFormError('');
     setEditingCity(null);
     setCityForm({ abbr: '', chinese: '', english: '', zipCode: '', sort: 100, status: '启用' });
     setCityModalOpen(true);
   };
 
   const openEditCity = (cityArea: CityArea) => {
+    setFormError('');
     setEditingCity(cityArea);
     setCityForm({
-      abbr: '',
+      abbr: cityArea.abbr || '',
       chinese: cityArea.chinese,
       english: cityArea.english,
       zipCode: cityArea.zipCode || '',
@@ -128,94 +148,108 @@ export default function AreaManagement() {
     setCityModalOpen(true);
   };
 
-  // Submit states form
-  const handleStateSubmit = (e: React.FormEvent) => {
+  const handleStateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    
-    if (editingState) {
-      // Update
-      setStates(prev => prev.map(s => s.id === editingState.id ? {
-        ...s,
-        abbr: stateForm.abbr,
-        chinese: stateForm.chinese,
-        english: stateForm.english,
-        sort: Number(stateForm.sort),
-        status: stateForm.status,
-        updatedTime: nowStr
-      } : s));
-    } else {
-      // Add
-      const nextId = states.length > 0 ? Math.max(...states.map(s => s.id)) + 1 : 1;
-      const newState: StateArea = {
-        id: nextId,
-        abbr: stateForm.abbr,
-        chinese: stateForm.chinese,
-        english: stateForm.english,
-        sort: Number(stateForm.sort),
-        status: stateForm.status,
-        updatedTime: nowStr
-      };
-      setStates(prev => [...prev, newState]);
+    if (saving) return;
+    setSaving(true);
+    setFormError('');
+    const payload = { ...stateForm, kind: 'state', updatedTime: new Date().toISOString().replace('T', ' ').substring(0, 19) };
+    try {
+      const result = editingState
+        ? await updateResource<RegionRecord>('regions', editingState.id, payload)
+        : await createResource<RegionRecord>('regions', payload);
+      const saved = toStateArea(result);
+      setStates(previous => editingState ? previous.map(item => item.id === saved.id ? saved : item) : [...previous, saved]);
+      if (selectedState?.id === saved.id) setSelectedState(saved);
+      setStateModalOpen(false);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '地区保存失败，请重试。');
+    } finally {
+      setSaving(false);
     }
-    setStateModalOpen(false);
   };
 
-  // Submit cities form
-  const handleCitySubmit = (e: React.FormEvent) => {
+  const handleCitySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedState) return;
-    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-    if (editingCity) {
-      setCities(prev => prev.map(c => c.id === editingCity.id ? {
-        ...c,
-        chinese: cityForm.chinese,
-        english: cityForm.english,
-        zipCode: cityForm.zipCode,
-        sort: Number(cityForm.sort),
-        status: cityForm.status,
-        updatedTime: nowStr
-      } : c));
-    } else {
-      const nextId = cities.length > 0 ? Math.max(...cities.map(c => c.id)) + 1 : 1001;
-      const newCity: CityArea = {
-        id: nextId,
-        stateId: selectedState.id,
-        chinese: cityForm.chinese,
-        english: cityForm.english,
-        zipCode: cityForm.zipCode,
-        sort: Number(cityForm.sort),
-        status: cityForm.status,
-        updatedTime: nowStr
-      };
-      setCities(prev => [...prev, newCity]);
-    }
-    setCityModalOpen(false);
-  };
-
-  // Toggle state status inline
-  const toggleStateStatus = (id: number) => {
-    setStates(prev => prev.map(s => s.id === id ? { ...s, status: s.status === '启用' ? '禁用' : '启用' } : s));
-  };
-
-  // Toggle city status inline
-  const toggleCityStatus = (id: number) => {
-    setCities(prev => prev.map(c => c.id === id ? { ...c, status: c.status === '启用' ? '禁用' : '启用' } : c));
-  };
-
-  // Delete State
-  const deleteState = (id: number) => {
-    if (window.confirm('您确定要删除该地区吗？')) {
-      setStates(prev => prev.filter(s => s.id !== id));
-      setCities(prev => prev.filter(c => c.stateId !== id)); // Cascade delete cities
+    if (!selectedState || saving) return;
+    setSaving(true);
+    setFormError('');
+    const payload = {
+      ...cityForm,
+      kind: 'city',
+      parentId: selectedState.id,
+      stateId: selectedState.id,
+      updatedTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    };
+    try {
+      const result = editingCity
+        ? await updateResource<RegionRecord>('regions', editingCity.id, payload)
+        : await createResource<RegionRecord>('regions', payload);
+      const saved = toCityArea(result);
+      setCities(previous => editingCity ? previous.map(item => item.id === saved.id ? saved : item) : [...previous, saved]);
+      setCityModalOpen(false);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '城市保存失败，请重试。');
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Delete City
-  const deleteCity = (id: number) => {
-    if (window.confirm('您确定要删除该城市吗？')) {
-      setCities(prev => prev.filter(c => c.id !== id));
+  const toggleStateStatus = async (id: ResourceId) => {
+    const state = states.find(item => item.id === id);
+    if (!state || saving) return;
+    setSaving(true);
+    setActionError('');
+    try {
+      const saved = toStateArea(await updateResource<RegionRecord>('regions', id, { status: state.status === '启用' ? '禁用' : '启用' }));
+      setStates(previous => previous.map(item => item.id === saved.id ? saved : item));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '状态更新失败，请重试。');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleCityStatus = async (id: ResourceId) => {
+    const city = cities.find(item => item.id === id);
+    if (!city || saving) return;
+    setSaving(true);
+    setActionError('');
+    try {
+      const saved = toCityArea(await updateResource<RegionRecord>('regions', id, { status: city.status === '启用' ? '禁用' : '启用' }));
+      setCities(previous => previous.map(item => item.id === saved.id ? saved : item));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '状态更新失败，请重试。');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteState = async (id: ResourceId) => {
+    if (saving || !await confirm({ title: '删除地区', message: '确认删除该地区？仍有所属城市的地区无法删除，请先处理城市。', confirmLabel: '删除' })) return;
+    setSaving(true);
+    setActionError('');
+    try {
+      await deleteResource('regions', id);
+      setStates(previous => previous.filter(item => item.id !== id));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '地区删除失败，请重试。');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteCity = async (id: ResourceId) => {
+    if (saving || !await confirm({ title: '删除城市', message: '该城市将从服务器删除，是否继续？', confirmLabel: '删除' })) return;
+    setSaving(true);
+    setActionError('');
+    try {
+      await deleteResource('regions', id);
+      setCities(previous => previous.filter(item => item.id !== id));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '城市删除失败，请重试。');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -234,69 +268,68 @@ export default function AreaManagement() {
   ) : [];
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 text-sm leading-relaxed">
+      <p className="text-xs text-slate-500">每次最多显示 500 条匹配记录，可按英文名称缩小查询范围。</p>
       {/* Top action header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
-          {currentView === 'cities' && selectedState ? (
-            <button 
-              onClick={() => { setCurrentView('states'); setKeyword(''); }} 
-              className="flex items-center gap-1 text-sm font-semibold text-gray-800 hover:text-[#48a1a1] transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span>省份: 【{selectedState.chinese}】</span>
+          {currentView === 'cities' && selectedState && (
+            <button onClick={() => { setCurrentView('states'); setKeyword(''); }} className="mb-3 flex items-center gap-1 text-[13px] text-slate-500 transition-colors hover:text-[#48a1a1]">
+              <ChevronLeft className="h-4 w-4" />返回地区列表
             </button>
-          ) : (
-            <h2 className="text-lg font-bold text-gray-800">地区管理</h2>
           )}
+          <h2 className="page-heading">{currentView === 'states' ? '地区管理' : '城市管理'}</h2>
+          <p className="page-description">{currentView === 'states' ? '维护 Massajoy2.0 平台中的州、省与城市。' : `${selectedState?.chinese || ''} · 管理该地区所属城市。`}</p>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button 
-            onClick={currentView === 'states' ? openAddState : openAddCity}
-            className="flex items-center gap-1.5 bg-[#48a1a1] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#3d8b8b] transition-colors shadow-sm cursor-pointer whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            <span>新增</span>
-          </button>
-        </div>
+        <button disabled={loading || saving || Boolean(loadError)} onClick={currentView === 'states' ? openAddState : openAddCity} className="flex shrink-0 items-center gap-2 rounded-lg bg-[#48a1a1] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#3d8b8b]">
+          <Plus className="h-4 w-4" />{currentView === 'states' ? '新增州 / 省' : '新增城市'}
+        </button>
       </div>
 
-      {/* Filter / Search Bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <input 
-            type="text" 
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder="关键字查询"
-            className="w-full bg-gray-50 border border-gray-100 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20 placeholder-gray-400"
-          />
-          <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
+      {loadError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <span>{loadError}</span>
+          <button type="button" onClick={() => void loadRegions()} disabled={loading} className="rounded-lg border border-amber-300 bg-white px-3 py-2">重新加载</button>
         </div>
+      )}
+      {actionError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{actionError}</div>}
+
+      {/* Filter / Search Bar */}
+      <div className="flex flex-col gap-3 rounded-xl border border-slate-200/70 bg-white p-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="w-full sm:max-w-md">
+          <label htmlFor="area-search" className="mb-2 block text-[13px] font-medium text-slate-600">地区名称</label>
+          <div className="relative">
+            <input id="area-search" type="text" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder={currentView === 'states' ? '按地区英文名称查询' : '按城市英文名称查询'} className="w-full rounded-lg border border-slate-200 bg-slate-50/60 py-2 pl-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-[#48a1a1]/20" />
+            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          </div>
+        </div>
+        <span className="py-2 text-[13px] text-slate-500">筛选条件实时生效</span>
       </div>
 
       {/* Content views */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-slate-200/70 bg-white">
         {currentView === 'states' ? (
           /* STATES VIEW */
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-left" style={{ minWidth: 980 }}>
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-100">
                   <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">ID</th>
-                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">州名称 (缩写)</th>
-                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">州名称 (英文)</th>
-                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">州名称 (中文)</th>
+                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">缩写</th>
+                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">英文名称</th>
+                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">中文名称</th>
                   <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">状态</th>
                   <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">更新时间</th>
                   <th className="px-6 py-4 text-[13px] font-semibold text-gray-600 text-center">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filteredStates.length === 0 ? (
+                {loading ? (
+                  <tr><td colSpan={7} className="px-6 py-16 text-center text-sm text-slate-500">正在加载地区数据…</td></tr>
+                ) : filteredStates.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">
-                      没有找到匹配的地区数据。
+                      {loadError ? '地区数据暂不可用，请稍后重新加载。' : '没有找到匹配的地区数据。'}
                     </td>
                   </tr>
                 ) : (
@@ -314,13 +347,14 @@ export default function AreaManagement() {
                       <td className="px-6 py-4 text-sm">
                         <div className="flex items-center gap-2">
                           <span className={cn(
-                            "text-xs font-medium px-2 py-0.5 rounded-full",
+                            "text-[13px] font-medium px-2 py-0.5 rounded-full",
                             state.status === '启用' ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-500"
                           )}>
                             {state.status}
                           </span>
                           <button 
-                            onClick={() => toggleStateStatus(state.id)}
+                            disabled={saving} aria-label={`切换${state.chinese}启用状态`}
+                            onClick={() => void toggleStateStatus(state.id)}
                             className="w-8 h-4 bg-gray-200 rounded-full relative transition-colors focus:outline-none"
                             style={{ backgroundColor: state.status === '启用' ? '#48a1a1' : '#e5e7eb' }}
                           >
@@ -333,12 +367,12 @@ export default function AreaManagement() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 font-mono">{state.updatedTime}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-[13px] text-slate-500">{state.updatedTime}</td>
                       <td className="px-6 py-4 text-sm text-center">
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-2 whitespace-nowrap">
                           <button 
-                            onClick={() => openEditState(state)}
-                            className="px-2.5 py-1 text-xs text-gray-600 border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+                            disabled={saving} onClick={() => openEditState(state)}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-600 transition-colors hover:border-[#48a1a1] hover:text-[#48a1a1]"
                           >
                             编辑
                           </button>
@@ -348,13 +382,13 @@ export default function AreaManagement() {
                               setCurrentView('cities'); 
                               setKeyword(''); 
                             }}
-                            className="px-2.5 py-1 text-xs text-white bg-[#48a1a1] hover:bg-[#3d8b8b] rounded transition-colors"
+                            className="rounded-lg bg-teal-50 px-3 py-2 text-[13px] text-teal-700 transition-colors hover:bg-teal-100"
                           >
-                            市列表
+                            城市列表
                           </button>
                           <button 
-                            onClick={() => deleteState(state.id)}
-                            className="px-2.5 py-1 text-xs text-white bg-red-400 hover:bg-red-500 rounded transition-colors"
+                            disabled={saving} onClick={() => void deleteState(state.id)}
+                            className="rounded-lg px-3 py-2 text-[13px] text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
                           >
                             删除
                           </button>
@@ -369,23 +403,25 @@ export default function AreaManagement() {
         ) : (
           /* CITIES VIEW */
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-left" style={{ minWidth: 980 }}>
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-100">
                   <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">ID</th>
-                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">州名称 (缩写)</th>
-                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">州名称 (英文)</th>
-                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">州名称 (中文)</th>
+                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">邮编</th>
+                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">英文名称</th>
+                  <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">中文名称</th>
                   <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">状态</th>
                   <th className="px-6 py-4 text-[13px] font-semibold text-gray-600">更新时间</th>
                   <th className="px-6 py-4 text-[13px] font-semibold text-gray-600 text-center">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filteredCities.length === 0 ? (
+                {loading ? (
+                  <tr><td colSpan={7} className="px-6 py-16 text-center text-sm text-slate-500">正在加载城市数据…</td></tr>
+                ) : filteredCities.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-gray-400 text-sm">
-                      没有找到该省下的城市数据。
+                      没有符合条件的城市，请调整筛选条件或新增城市。
                     </td>
                   </tr>
                 ) : (
@@ -397,19 +433,20 @@ export default function AreaManagement() {
                       className="hover:bg-gray-50/50 transition-colors"
                     >
                       <td className="px-6 py-4 text-sm text-gray-600">{city.id}</td>
-                      <td className="px-6 py-4 text-sm text-gray-400">-</td>
+                      <td className="px-6 py-4 text-[13px] text-slate-500">{city.zipCode || '—'}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{city.english}</td>
                       <td className="px-6 py-4 text-sm text-gray-800 font-medium">{city.chinese}</td>
                       <td className="px-6 py-4 text-sm">
                         <div className="flex items-center gap-2">
                           <span className={cn(
-                            "text-xs font-medium px-2 py-0.5 rounded-full",
+                            "text-[13px] font-medium px-2 py-0.5 rounded-full",
                             city.status === '启用' ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-500"
                           )}>
                             {city.status}
                           </span>
                           <button 
-                            onClick={() => toggleCityStatus(city.id)}
+                            disabled={saving} aria-label={`切换${city.chinese}启用状态`}
+                            onClick={() => void toggleCityStatus(city.id)}
                             className="w-8 h-4 bg-gray-200 rounded-full relative transition-colors focus:outline-none"
                             style={{ backgroundColor: city.status === '启用' ? '#48a1a1' : '#e5e7eb' }}
                           >
@@ -422,18 +459,18 @@ export default function AreaManagement() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500 font-mono">{city.updatedTime}</td>
+                      <td className="whitespace-nowrap px-6 py-4 text-[13px] text-slate-500">{city.updatedTime}</td>
                       <td className="px-6 py-4 text-sm text-center">
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-2 whitespace-nowrap">
                           <button 
-                            onClick={() => openEditCity(city)}
-                            className="px-2.5 py-1 text-xs text-gray-600 border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+                            disabled={saving} onClick={() => openEditCity(city)}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-600 transition-colors hover:border-[#48a1a1] hover:text-[#48a1a1]"
                           >
                             编辑
                           </button>
                           <button 
-                            onClick={() => deleteCity(city.id)}
-                            className="px-2.5 py-1 text-xs text-white bg-red-400 hover:bg-red-500 rounded transition-colors"
+                            disabled={saving} onClick={() => void deleteCity(city.id)}
+                            className="rounded-lg px-3 py-2 text-[13px] text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
                           >
                             删除
                           </button>
@@ -447,96 +484,82 @@ export default function AreaManagement() {
           </div>
         )}
 
-        {/* Footer info & pagination */}
-        <div className="p-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-          <div>共 {currentView === 'states' ? filteredStates.length : filteredCities.length} 条</div>
-          <div className="flex items-center gap-4">
-             <div className="flex items-center gap-1.5">
-                <span>15条/页</span>
-             </div>
-             <div className="flex items-center gap-1">
-                <button className="px-2.5 py-1 rounded bg-gray-50 border border-gray-200/50 hover:bg-gray-100">&lt;</button>
-                <button className="px-2.5 py-1 rounded bg-[#48a1a1] text-white">1</button>
-                <button className="px-2.5 py-1 rounded bg-gray-50 border border-gray-200/50 hover:bg-gray-100">&gt;</button>
-             </div>
-             <div className="flex items-center gap-1">
-                <span>前往</span>
-                <input type="text" className="w-8 border border-gray-100 rounded text-center py-0.5 focus:outline-none focus:ring-1 focus:ring-[#48a1a1]" defaultValue="1" />
-                <span>页</span>
-             </div>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-5 py-4 text-xs text-slate-500">
+          <span>共 {currentView === 'states' ? filteredStates.length : filteredCities.length} 条</span>
+          <span>窄屏可横向滚动查看</span>
         </div>
       </div>
 
       {/* STATE MODAL (州管理) */}
       <AnimatePresence>
         {stateModalOpen && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 sm:p-5">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-xl shadow-xl w-full max-w-[600px] overflow-hidden"
+              role="dialog" aria-modal="true" className="flex max-h-[90dvh] w-full max-w-[600px] flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <h3 className="text-sm font-semibold text-gray-800">州管理</h3>
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white px-5 py-5 sm:px-6">
+                <h3 className="text-lg font-semibold text-slate-900">{editingState ? '编辑州 / 省' : '新增州 / 省'}</h3>
                 <button 
-                  onClick={() => setStateModalOpen(false)}
-                  className="p-1 rounded-lg text-gray-400 hover:bg-gray-150 transition-colors"
+                  disabled={saving} onClick={() => setStateModalOpen(false)}
+                  aria-label="关闭地区编辑" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleStateSubmit} className="p-6 space-y-4">
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">州名称 (缩写)</label>
+              <form onSubmit={handleStateSubmit} className="min-h-0 space-y-5 overflow-y-auto p-5 sm:p-6">
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">缩写</label>
                   <input 
                     type="text" 
+                    required
                     value={stateForm.abbr}
                     onChange={(e) => setStateForm(prev => ({ ...prev, abbr: e.target.value }))}
-                    className="col-span-2 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
+                    className="bg-gray-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
                     placeholder="例如: AL"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">州名称 (中文)</label>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">中文名称</label>
                   <input 
                     type="text" 
                     required
                     value={stateForm.chinese}
                     onChange={(e) => setStateForm(prev => ({ ...prev, chinese: e.target.value }))}
-                    className="col-span-2 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
+                    className="bg-gray-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
                     placeholder="例如: 阿拉巴马州"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">州名称 (英文)</label>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">英文名称</label>
                   <input 
                     type="text" 
                     required
                     value={stateForm.english}
                     onChange={(e) => setStateForm(prev => ({ ...prev, english: e.target.value }))}
-                    className="col-span-2 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
+                    className="bg-gray-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
                     placeholder="例如: Alabama"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">排序</label>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">排序</label>
                   <input 
                     type="number" 
                     value={stateForm.sort}
                     onChange={(e) => setStateForm(prev => ({ ...prev, sort: Number(e.target.value) }))}
-                    className="col-span-2 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
+                    className="bg-gray-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">状态</label>
-                  <div className="col-span-2 flex items-center gap-6 text-sm">
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">状态</label>
+                  <div className="flex items-center gap-6 text-sm">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input 
                         type="radio" 
@@ -560,19 +583,21 @@ export default function AreaManagement() {
                   </div>
                 </div>
 
-                <div className="pt-4 flex justify-end gap-3">
+                <div className="sticky -bottom-5 -mx-5 flex flex-wrap justify-end gap-3 border-t border-slate-100 bg-white px-5 py-4 sm:-bottom-6 sm:-mx-6 sm:px-6">
+                  {formError && <div role="alert" className="w-full rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{formError}</div>}
                   <button 
                     type="button"
-                    onClick={() => setStateModalOpen(false)}
+                    disabled={saving} onClick={() => setStateModalOpen(false)}
                     className="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-lg"
                   >
                     取消
                   </button>
                   <button 
                     type="submit"
-                    className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    disabled={saving}
+                    className="disabled:opacity-60 px-5 py-2 bg-[#48a1a1] hover:bg-[#3d8b8b] text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    提交
+                    {saving ? '保存中…' : '保存'}
                   </button>
                 </div>
               </form>
@@ -584,93 +609,93 @@ export default function AreaManagement() {
       {/* CITY MODAL (城市管理) */}
       <AnimatePresence>
         {cityModalOpen && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 sm:p-5">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-xl shadow-xl w-full max-w-[600px] overflow-hidden"
+              role="dialog" aria-modal="true" className="flex max-h-[90dvh] w-full max-w-[600px] flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <h3 className="text-sm font-semibold text-gray-800">城市管理</h3>
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white px-5 py-5 sm:px-6">
+                <h3 className="text-lg font-semibold text-slate-900">{editingCity ? '编辑城市' : '新增城市'}</h3>
                 <button 
-                  onClick={() => setCityModalOpen(false)}
-                  className="p-1 rounded-lg text-gray-400 hover:bg-gray-150 transition-colors"
+                  disabled={saving} onClick={() => setCityModalOpen(false)}
+                  aria-label="关闭地区编辑" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleCitySubmit} className="p-6 space-y-4">
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">州</label>
+              <form onSubmit={handleCitySubmit} className="min-h-0 space-y-5 overflow-y-auto p-5 sm:p-6">
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">州</label>
                   <input 
                     type="text" 
                     disabled
                     value={selectedState?.chinese || ''}
-                    className="col-span-2 bg-gray-100 border border-gray-250 cursor-not-allowed rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500"
+                    className="bg-gray-100 border border-slate-200 cursor-not-allowed rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">城市名称 (缩写)</label>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">城市名称 (缩写)</label>
                   <input 
                     type="text" 
                     value={cityForm.abbr}
                     onChange={(e) => setCityForm(prev => ({ ...prev, abbr: e.target.value }))}
-                    className="col-span-2 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
+                    className="bg-gray-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
                     placeholder="可选，例如: AU"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">城市名称 (中文)</label>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">城市名称 (中文)</label>
                   <input 
                     type="text" 
                     required
                     value={cityForm.chinese}
                     onChange={(e) => setCityForm(prev => ({ ...prev, chinese: e.target.value }))}
-                    className="col-span-2 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
+                    className="bg-gray-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
                     placeholder="中文城市名称，例如: 奥本"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">城市名称 (英文)</label>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">城市名称 (英文)</label>
                   <input 
                     type="text" 
                     required
                     value={cityForm.english}
                     onChange={(e) => setCityForm(prev => ({ ...prev, english: e.target.value }))}
-                    className="col-span-2 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
+                    className="bg-gray-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
                     placeholder="英文城市名称，例如: Auburn"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">邮编</label>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">邮编</label>
                   <input 
                     type="text" 
                     value={cityForm.zipCode}
                     onChange={(e) => setCityForm(prev => ({ ...prev, zipCode: e.target.value }))}
-                    className="col-span-2 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
+                    className="bg-gray-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
                     placeholder="例如: 36830"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">排序</label>
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">排序</label>
                   <input 
                     type="number" 
                     value={cityForm.sort}
                     onChange={(e) => setCityForm(prev => ({ ...prev, sort: Number(e.target.value) }))}
-                    className="col-span-2 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
+                    className="bg-gray-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 items-center">
-                  <label className="text-xs font-semibold text-gray-600 text-right pr-2">状态</label>
-                  <div className="col-span-2 flex items-center gap-6 text-sm">
+                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[130px_minmax(0,1fr)] sm:gap-5">
+                  <label className="text-[13px] font-semibold text-slate-600">状态</label>
+                  <div className="flex items-center gap-6 text-sm">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input 
                         type="radio" 
@@ -694,19 +719,21 @@ export default function AreaManagement() {
                   </div>
                 </div>
 
-                <div className="pt-4 flex justify-end gap-3">
+                <div className="sticky -bottom-5 -mx-5 flex flex-wrap justify-end gap-3 border-t border-slate-100 bg-white px-5 py-4 sm:-bottom-6 sm:-mx-6 sm:px-6">
+                  {formError && <div role="alert" className="w-full rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{formError}</div>}
                   <button 
                     type="button"
-                    onClick={() => setCityModalOpen(false)}
+                    disabled={saving} onClick={() => setCityModalOpen(false)}
                     className="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-lg"
                   >
                     取消
                   </button>
                   <button 
                     type="submit"
-                    className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    disabled={saving}
+                    className="disabled:opacity-60 px-5 py-2 bg-[#48a1a1] hover:bg-[#3d8b8b] text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    提交
+                    {saving ? '保存中…' : '保存'}
                   </button>
                 </div>
               </form>

@@ -1,5 +1,7 @@
 export type ViewId = 
   | 'dashboard' 
+  | 'audit-logs'
+  | 'notification-operations'
   | 'area-management' 
   | 'coupon-management' 
   | 'gift-card-management' 
@@ -12,10 +14,15 @@ export type ViewId =
   | 'withdrawal-list' 
   | 'platform-settings' 
   | 'help-list'
+  | 'banner-list'
   | 'admin-list'
   | 'merchant-list'
   | 'role-management'
-  | 'package-management';
+  | 'package-management'
+  | 'services'
+  | 'technicians'
+  | 'reservation-settings'
+  | 'industries';
 
 export interface NavItem {
   id: ViewId;

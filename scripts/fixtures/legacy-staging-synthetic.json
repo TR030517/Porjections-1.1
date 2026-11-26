@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "format": "massajoy-legacy-staging-export",
+  "source": {"system":"Massajoy1.0","datasetKind":"synthetic","piiRemoved":true,"scope":"selected-domains-staging-only","exportedAt":"2031-05-02T12:00:00Z","unsupportedDomains":[]},
+  "identities": [
+    {"source":{"table":"users","id":"0007"},"pseudonym":"anon_owner_a","role":"MERCHANT","status":"ACTIVE"},
+    {"source":{"table":"users","id":"9007199254740993"},"pseudonym":"anon_customer_a","role":"CUSTOMER","status":"ACTIVE"},
+    {"source":{"table":"sys_manager","id":"0007"},"pseudonym":"anon_admin_a","role":"ADMIN","status":"ACTIVE"}
+  ],
+  "shops": [
+    {"source":{"table":"merchant","id":"3740"},"owner":{"table":"users","id":"0007"},"displayLabel":"Synthetic staging shop","shortName":"synthetic-staging-shop","status":"APPROVED","timezone":"America/New_York","businessHours":{"sunday":[],"monday":[{"open":"09:00","close":"12:00"},{"open":"13:00","close":"20:00"}],"tuesday":[],"wednesday":[],"thursday":[],"friday":[],"saturday":[]}}
+  ],
+  "services": [
+    {"source":{"table":"project","id":"service-a"},"shop":{"table":"merchant","id":"3740"},"displayLabel":"Synthetic service","category":"MASSAGE","durationMin":60,"price":{"original":"60.00","unit":"major","cents":6000},"currency":"usd","priceBasis":"PER_PERSON","active":true}
+  ],
+  "variants": [
+    {"source":{"table":"project_price","id":"variant-a"},"service":{"table":"project","id":"service-a"},"displayLabel":"Synthetic ninety minute SKU","durationMin":90,"price":{"original":"8500","unit":"minor","cents":8500},"currency":"usd","priceBasis":"PER_PERSON","active":true}
+  ],
+  "therapists": [
+    {"source":{"table":"master","id":"tech-a"},"shop":{"table":"merchant","id":"3740"},"pseudonym":"anon_therapist_a","active":true}
+  ],
+  "qualifications": [
+    {"source":{"table":"master_project","id":"link-a"},"therapist":{"table":"master","id":"tech-a"},"service":{"table":"project","id":"service-a"}}
+  ],
+  "giftProducts": [
+    {"source":{"table":"gift_product","id":"gift-a"},"shop":{"table":"merchant","id":"3740"},"displayLabel":"Synthetic five-use product","totalUses":5,"validDays":365,"price":{"original":"250.00","unit":"major","cents":25000},"currency":"usd","active":true}
+  ],
+  "historicalBookings": [
+    {"source":{"table":"order","id":"order-a"},"user":{"table":"users","id":"9007199254740993"},"shop":{"table":"merchant","id":"3740"},"services":[{"table":"project","id":"service-a"}],"status":"COMPLETED","timezone":"America/New_York","startAt":"2031-05-01T10:00:00-04:00","endAt":"2031-05-01T11:00:00-04:00","currency":"usd","amounts":{"base":{"original":"60.00","unit":"major","cents":6000},"discount":{"original":"5","unit":"major","cents":500},"fee":{"original":"0.50","unit":"major","cents":50},"tip":{"original":"1.85","unit":"major","cents":185},"tax":{"original":"0","unit":"minor","cents":0},"total":{"original":"57.35","unit":"major","cents":5735},"paid":{"original":"5735","unit":"minor","cents":5735},"refunded":{"original":"10.00","unit":"major","cents":1000}}}
+  ],
+  "historicalPayments": [
+    {"source":{"table":"payment_evidence","id":"payment-a"},"booking":{"table":"order","id":"order-a"},"shop":{"table":"merchant","id":"3740"},"owner":{"table":"users","id":"0007"},"kind":"PAYMENT","parent":null,"provider":"square","ownership":"DIRECT_SHOP","status":"SUCCEEDED","amount":{"original":"57.35","unit":"major","cents":5735},"currency":"usd","occurredAt":"2031-04-30T12:00:00Z","evidenceDigest":"1111111111111111111111111111111111111111111111111111111111111111"},
+    {"source":{"table":"payment_evidence","id":"refund-a"},"booking":{"table":"order","id":"order-a"},"shop":{"table":"merchant","id":"3740"},"owner":{"table":"users","id":"0007"},"kind":"REFUND","parent":{"table":"payment_evidence","id":"payment-a"},"provider":"square","ownership":"DIRECT_SHOP","status":"SUCCEEDED","amount":{"original":"1000","unit":"minor","cents":1000},"currency":"usd","occurredAt":"2031-05-01T16:00:00Z","evidenceDigest":"2222222222222222222222222222222222222222222222222222222222222222"}
+  ],
+  "unusedEntitlements": [
+    {"source":{"table":"gift_right","id":"right-a"},"user":{"table":"users","id":"9007199254740993"},"shop":{"table":"merchant","id":"3740"},"product":{"table":"gift_product","id":"gift-a"},"sourceKind":"PURCHASE","status":"ACTIVE","totalUses":5,"remainingUses":5,"issuedAt":"2031-05-01T10:00:00-04:00","expiresAt":"2032-04-30T10:00:00-04:00","timezone":"America/New_York","funding":{"ownership":"DIRECT_SHOP","owner":{"table":"users","id":"0007"},"paid":{"original":"250.00","unit":"major","cents":25000},"currency":"usd","evidenceDigest":"3333333333333333333333333333333333333333333333333333333333333333"}}
+  ]
+}

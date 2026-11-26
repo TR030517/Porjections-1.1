@@ -1,0 +1,54 @@
+# Admin's formal TypeScript gate also checks the shared backend readiness rules.
+# Prepare their real dependency/types tree instead of excluding those checks.
+FROM node:24-bookworm-slim AS shared-backend-types
+WORKDIR /src/backend
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY backend/package*.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY backend/prisma ./prisma
+RUN DATABASE_URL=mysql://generate:unused@db/massajoy2 node node_modules/prisma/build/index.js generate
+COPY backend/src ./src
+
+FROM node:24-bookworm-slim AS admin
+WORKDIR /src
+COPY package*.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY index.html tsconfig.json vite.config.ts ./
+COPY src ./src
+# Preserve complete shared source trees, including transitive imports and CSS.
+# Only referenced modules enter the browser bundle; no runtime/backend data is copied.
+COPY --from=shared-backend-types /src/backend ./backend
+COPY merchant-web/src ./merchant-web/src
+RUN npm run typecheck && npm run build
+
+FROM node:24-bookworm-slim AS merchant
+WORKDIR /src
+COPY merchant-web/package*.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+# Keep the repository layout so ../../../src and its transitive imports resolve
+# without a hand-maintained per-file COPY list. Dependencies installed above are
+# shared by both source trees through their common /src/node_modules ancestor.
+COPY src ./src
+COPY backend/src/common ./backend/src/common
+COPY merchant-web/ ./merchant-web/
+WORKDIR /src/merchant-web
+RUN npm run build && mv dist /src/dist
+
+FROM ubuntu:24.04 AS customer
+ENV DEBIAN_FRONTEND=noninteractive CI=true FLUTTER_SUPPRESS_ANALYTICS=true
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git unzip xz-utils libglu1-mesa && rm -rf /var/lib/apt/lists/*
+RUN git clone --depth 1 --branch 3.44.1 https://github.com/flutter/flutter.git /opt/flutter && test "$(git -C /opt/flutter rev-parse HEAD)" = "924134a44c189315be2148659913dda1671cbe99"
+ENV PATH=/opt/flutter/bin:$PATH
+COPY deploy/curlrc /root/.curlrc
+RUN flutter config --no-analytics && flutter precache --web
+WORKDIR /src
+COPY customer-app/ ./
+RUN --mount=type=cache,id=massajoy2-pub,target=/root/.pub-cache,sharing=locked flutter pub get --enforce-lockfile && flutter analyze --no-pub && flutter test --no-pub && flutter build web --release --no-pub --base-href=/ --dart-define=API_BASE_URL=/api/v1
+
+FROM caddy:2.10.2-alpine
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=admin /src/dist /srv/admin
+COPY --from=merchant /src/dist /srv/merchant
+COPY --from=customer /src/build/web /srv/customer
+COPY deploy/service-gallery/ /srv/service-gallery/
+EXPOSE 80 443

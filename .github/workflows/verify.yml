@@ -1,0 +1,180 @@
+name: Verify Massajoy2
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-ephemeral-only
+          MYSQL_DATABASE: mj2_test_ci
+          MYSQL_USER: massajoy
+          MYSQL_PASSWORD: ci-ephemeral-only
+        ports: ["3310:3306"]
+        options: --health-cmd="mysqladmin ping --silent" --health-interval=10s --health-timeout=5s --health-retries=20
+    env:
+      DATABASE_URL: mysql://massajoy:ci-ephemeral-only@127.0.0.1:3310/mj2_test_ci
+      TEST_DATABASE_URL: mysql://massajoy:ci-ephemeral-only@127.0.0.1:3310/mj2_test_ci
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            merchant-web/package-lock.json
+      - name: Verify complete, committed release inputs before installing dependencies
+        run: node scripts/check-release-source.mjs --report .local/ci-source-check/source.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-source-check-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .local/ci-source-check/
+          if-no-files-found: ignore
+      - run: npm ci --ignore-scripts
+      - run: npm ci --ignore-scripts --prefix backend
+      - run: npm ci --ignore-scripts --prefix merchant-web
+      - run: npm run prisma:generate --prefix backend
+      - run: npm run prisma:deploy --prefix backend
+      - name: Allow disposable resource schemas only within the test prefix
+        env:
+          MYSQL_SERVICE_ID: ${{ job.services.mysql.id }}
+        run: |
+          docker exec -i -e MYSQL_PWD=ci-ephemeral-only "$MYSQL_SERVICE_ID" mysql -uroot <<'SQL'
+          GRANT ALL PRIVILEGES ON `mj2\_test\_%`.* TO 'massajoy'@'%';
+          SQL
+      - name: Verify management password rotation against disposable MySQL schemas
+        working-directory: backend
+        env:
+          MERCHANT_CREDENTIAL_VAULT_DIR: ${{ github.workspace }}/.local/ci-management-password-vault
+          NOTIFICATION_WORKER_ENABLED: "false"
+          ORDER_EMAIL_ENABLED: "false"
+        run: node --test --test-concurrency=1 test/management-password.integration.cjs test/management-password-cookie.integration.cjs
+      - run: npm run release:check
+      - name: Enforce frontend artifact size and deferred-route budgets
+        run: node scripts/check-frontend-bundles.mjs --report .local/ci-bundle-results/frontend-bundles.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-bundle-measurements-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .local/ci-bundle-results/
+          if-no-files-found: ignore
+      - name: Verify all admin source tests
+        run: node --import tsx --test 'src/**/*.test.ts' 'src/**/*.test.tsx'
+      - run: node --test scripts/legacy-migration-preflight.test.mjs
+      - run: node --test scripts/release-env-check.test.mjs
+      - name: Verify release-source and GET-only release HTTP gate failure cases
+        run: node --test scripts/check-release-source.test.mjs scripts/release-http-smoke.test.mjs
+      - name: Verify offline staging, backup and development watchers, and disposable HTTP runner guards
+        run: node --test scripts/legacy-staging.test.mjs scripts/backup.test.mjs scripts/credential-backup.test.mjs scripts/credential-backup-integration.test.mjs scripts/dev-watch.test.mjs scripts/phase5-http-integration.test.mjs
+      - name: Verify bundle-only recovery guards without accessing a source environment
+        run: node --test scripts/lost-source-restore.test.mjs
+      - run: npm test --prefix merchant-web
+      - run: npm test --prefix backend
+      - run: npm run test:integration --prefix backend
+      - name: Verify persistent push devices without external delivery
+        working-directory: backend
+        run: node --test test/push-token-integration.cjs
+      - name: Verify booking contacts, assisted guests, calendar resources and legacy security in fresh schemas
+        working-directory: backend
+        env:
+          MERCHANT_CREDENTIAL_VAULT_DIR: ${{ github.workspace }}/.local/ci-resource-vault
+          NOTIFICATION_WORKER_ENABLED: "false"
+          ORDER_EMAIL_ENABLED: "false"
+        run: node --test --test-concurrency=1 test/booking-resources.integration.cjs test/booking-resources-legacy.integration.cjs test/booking-contact-calendar.integration.cjs
+      - name: Verify customer credentials, booking visibility, refund notifications and staff lifecycle
+        working-directory: backend
+        env:
+          MERCHANT_CREDENTIAL_VAULT_DIR: ${{ github.workspace }}/.local/ci-next-requirements-vault
+          NOTIFICATION_WORKER_ENABLED: "false"
+          ORDER_EMAIL_ENABLED: "false"
+        run: node --test --test-concurrency=1 test/admin-password-policy.integration.cjs test/customer-password.integration.cjs test/customer-booking-visibility.integration.cjs test/staff-lifecycle.integration.cjs test/staff-password-policy.integration.cjs
+      - name: Verify logout revocation, account emergency recovery, financial atomicity and worker SQL faults in disposable schemas
+        working-directory: backend
+        env:
+          MERCHANT_CREDENTIAL_VAULT_DIR: ${{ github.workspace }}/.local/ci-acceptance-boundaries-vault
+          NOTIFICATION_WORKER_ENABLED: "false"
+          ORDER_EMAIL_ENABLED: "false"
+          ORDER_EMAIL_API_KEY: ""
+          AUTH_EMAIL_API_KEY: ""
+          MEDIA_STORAGE_DRIVER: "disabled"
+        run: node --test --test-concurrency=1 test/logout-session.integration.cjs test/account-handoff-emergency.integration.cjs test/acceptance-financial-atomicity.integration.cjs test/notification-worker-process.integration.cjs
+      - run: npm audit --omit=dev --registry=https://registry.npmjs.org
+      - run: npm audit --omit=dev --registry=https://registry.npmjs.org --prefix backend
+      - run: npm audit --omit=dev --registry=https://registry.npmjs.org --prefix merchant-web
+      - name: Install pinned Flutter source
+        run: |
+          git clone --depth 1 --branch 3.44.1 https://github.com/flutter/flutter.git /tmp/massajoy-flutter
+          test "$(git -C /tmp/massajoy-flutter rev-parse HEAD)" = "924134a44c189315be2148659913dda1671cbe99"
+          echo /tmp/massajoy-flutter/bin >> "$GITHUB_PATH"
+      - working-directory: customer-app
+        run: flutter pub get --enforce-lockfile
+      - working-directory: customer-app
+        run: flutter analyze
+      - working-directory: customer-app
+        run: flutter test
+      - working-directory: customer-app
+        run: flutter build web --release --no-pub --base-href=/ --dart-define=API_BASE_URL=/api/v1
+  release-images:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI_RELEASE_TAG: ci-${{ github.sha }}
+      CI_COMPOSE_PROJECT: mj2-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build the formal merchant, final web and API images from this checkout
+        run: |
+          mkdir -p .local/ci-image-results
+          docker build --file deploy/Dockerfile.web --target merchant --progress plain --iidfile .local/ci-image-results/merchant.iid --tag "massajoy2-merchant:$CI_RELEASE_TAG" .
+          docker build --file deploy/Dockerfile.web --progress plain --iidfile .local/ci-image-results/web.iid --tag "massajoy2-web:$CI_RELEASE_TAG" .
+          docker build --file deploy/Dockerfile.api --progress plain --iidfile .local/ci-image-results/api.iid --tag "massajoy2-api:$CI_RELEASE_TAG" .
+      - name: Prepare unique disposable release configuration
+        run: |
+          node --input-type=module <<'NODE'
+          import { randomBytes } from 'node:crypto';
+          import { writeFileSync } from 'node:fs';
+          const secret = () => randomBytes(48).toString('hex');
+          const env = {
+            RELEASE_TAG: process.env.CI_RELEASE_TAG,
+            SITE_ADDRESS: ':80', TLS_EMAIL: 'ci@example.invalid',
+            PUBLIC_ORIGIN: 'http://127.0.0.1:8088',
+            HTTP_BIND: '127.0.0.1', HTTP_PORT: '8088', HTTPS_BIND: '127.0.0.1', HTTPS_PORT: '8443',
+            MYSQL_DATABASE: 'mj2_test_release_ci', MYSQL_ROOT_PASSWORD: secret(), MYSQL_PASSWORD: secret(),
+            JWT_SECRET: secret(), MERCHANT_CREDENTIAL_VAULT_KEY: randomBytes(32).toString('base64'),
+            PAYMENT_PROVIDER: 'disabled', PAYMENT_EXTERNAL_ENABLED: 'false', BOOKING_ONLINE_PAYMENT_ENABLED: 'false',
+            AUTH_LOCAL_OTP: 'false', AUTH_EMAIL_LOCAL_OTP: 'false', ORDER_EMAIL_ENABLED: 'false',
+            NOTIFICATION_WORKER_ENABLED: 'false', MEDIA_STORAGE_DRIVER: 'local',
+          };
+          writeFileSync('.local/ci-release.env', Object.entries(env).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', { flag: 'wx', mode: 0o600 });
+          writeFileSync('.local/ci-release.override.yaml', 'services:\n  api:\n    environment:\n      FCM_ENABLED: "false"\nnetworks:\n  internal:\n    internal: true\n', { flag: 'wx' });
+          NODE
+      - name: Migrate and start only the unique release candidate project
+        run: |
+          docker compose --project-name "$CI_COMPOSE_PROJECT" --env-file .local/ci-release.env --file compose.yaml --file .local/ci-release.override.yaml up --detach --wait db
+          docker compose --project-name "$CI_COMPOSE_PROJECT" --env-file .local/ci-release.env --file compose.yaml --file .local/ci-release.override.yaml run --rm migrate
+          docker compose --project-name "$CI_COMPOSE_PROJECT" --env-file .local/ci-release.env --file compose.yaml --file .local/ci-release.override.yaml up --detach --no-build --wait api web
+      - name: Verify the frozen images' health, entry routes, deep links and static assets
+        run: node scripts/release-http-smoke.mjs --origin http://127.0.0.1:8088 --report .local/ci-image-results/container-smoke.json
+      - name: Remove only this run's disposable candidate project
+        if: always()
+        run: |
+          if [ -f .local/ci-release.env ]; then
+            docker compose --project-name "$CI_COMPOSE_PROJECT" --env-file .local/ci-release.env --file compose.yaml --file .local/ci-release.override.yaml down --volumes --remove-orphans
+            rm -f .local/ci-release.env
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-image-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .local/ci-image-results/

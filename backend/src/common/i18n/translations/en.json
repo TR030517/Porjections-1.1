@@ -1,0 +1,45 @@
+{
+  "error": {
+    "notFound": "Resource not found",
+    "unauthorized": "Unauthorized access",
+    "forbidden": "Access forbidden",
+    "validationError": "Validation error",
+    "internalError": "Internal server error",
+    "tooManyRequests": "Too many requests, please try again later"
+  },
+  "auth": {
+    "otpSent": "Verification code sent successfully",
+    "loginSuccess": "Login successful",
+    "invalidOtp": "Invalid verification code",
+    "otpExpired": "Verification code expired, please request a new one",
+    "tokenExpired": "Session expired, please login again",
+    "tokenRefreshed": "Token refreshed successfully"
+  },
+  "booking": {
+    "created": "Booking created successfully",
+    "cancelled": "Booking cancelled successfully",
+    "deleted": "Booking deleted successfully",
+    "slotUnavailable": "Selected time slot is no longer available",
+    "notFound": "Booking not found",
+    "cannotCancel": "This booking cannot be cancelled"
+  },
+  "review": {
+    "created": "Review submitted successfully",
+    "updated": "Review updated successfully",
+    "deleted": "Review deleted successfully",
+    "alreadyReviewed": "You have already reviewed this booking",
+    "onlyCompleted": "Only completed bookings can be reviewed"
+  },
+  "shop": {
+    "notFound": "Shop not found",
+    "noSlots": "No available time slots for the selected date"
+  },
+  "user": {
+    "profileUpdated": "Profile updated successfully",
+    "notFound": "User not found"
+  },
+  "favorite": {
+    "toggled": "Favorite updated",
+    "alreadyFavorited": "Already in favorites"
+  }
+}

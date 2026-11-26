@@ -1,0 +1,32 @@
+.menu-catalog-picker { display: grid; gap: 12px; padding: 14px; border: 1px solid #a8cfca; border-radius: 12px; background: #fff; min-width: 0; color: #1e293b; }
+.menu-catalog-heading, .menu-catalog-parent, .menu-catalog-search, .menu-catalog-pagination { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.menu-catalog-heading { justify-content: space-between; }
+.menu-catalog-heading strong { font-size: 14px; color: #155e5b; }
+.menu-catalog-parent { padding: 9px 10px; border-radius: 8px; background: #e8f5f3; font-size: 12px; }
+.menu-catalog-search { align-items: end; }
+.menu-catalog-search label { display: grid; gap: 5px; min-width: 0; flex: 1 1 180px; font-size: 12px; color: #52616b; }
+.menu-catalog-search input { box-sizing: border-box; width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #cedcde; border-radius: 8px; background: #fff; color: #1e293b; font: inherit; }
+.menu-catalog-picker button { min-height: 34px; padding: 7px 11px; border: 1px solid #bed6d3; border-radius: 8px; background: #fff; color: #226f6b; font: inherit; font-size: 12px; cursor: pointer; }
+.menu-catalog-picker button:disabled { cursor: default; opacity: .55; }
+.menu-catalog-picker input:focus-visible, .menu-catalog-picker button:focus-visible { outline: 2px solid #287c7c; outline-offset: 2px; }
+.menu-catalog-options { display: grid; gap: 8px; margin: 0; padding: 2px; list-style: none; max-height: 440px; overflow: auto; }
+.menu-catalog-picker button.menu-catalog-option { display: grid; width: 100%; gap: 5px; text-align: left; justify-content: stretch; padding: 11px 12px; border-color: #dbe6e6; background: #f8fbfb; }
+.menu-catalog-picker button.menu-catalog-option:hover:not(:disabled) { border-color: #83bdb8; background: #eef8f6; }
+.menu-catalog-option-name { color: #155e5b; font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.menu-catalog-option-detail, .menu-catalog-option-parent { color: #52616b; font-size: 12px; line-height: 1.5; }
+.menu-catalog-option-action { color: #287c7c; font-size: 12px; font-weight: 600; }
+.menu-catalog-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.menu-catalog-tags > span { padding: 2px 7px; border-radius: 6px; background: #f1f3f4; color: #64748b; font-size: 11px; }
+.menu-catalog-tags > span.is-enabled { background: #e1f2ec; color: #286b51; }
+.menu-catalog-message { margin: 0; padding: 12px; border-radius: 8px; background: #f4f8f8; color: #52616b; font-size: 12px; line-height: 1.7; }
+.menu-catalog-message.is-error { border: 1px solid #ecd4ba; background: #fff8ec; color: #8b6334; }
+.menu-catalog-message p { margin: 0 0 8px; }
+.menu-catalog-count, .menu-catalog-footnote { margin: 0; color: #64748b; font-size: 11px; line-height: 1.6; }
+.menu-catalog-pagination { justify-content: flex-end; }
+.price-menu-catalog-current { display: grid; gap: 5px; padding: 11px 12px; border: 1px solid #cce1df; border-radius: 9px; background: #f0f9f9; font-size: 12px; color: #52616b; }
+.price-menu-catalog-current > strong { color: #155e5b; font-size: 14px; overflow-wrap: anywhere; }
+.price-menu-catalog-current > span, .menu-catalog-parent > span { overflow-wrap: anywhere; }
+.price-menu-booking-fields { display: grid; gap: 10px; min-width: 0; }
+.price-menu-booking-fields input[type="checkbox"] { width: 16px; height: 16px; min-height: 0; padding: 0; margin-right: 6px; vertical-align: middle; accent-color: #287c7c; }
+.price-menu-catalog-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.price-menu-catalog-conflict { margin: 0; padding: 10px 12px; border: 1px solid #e4c49b; border-radius: 8px; background: #fff8ec; color: #8b6334; font-size: 12px; line-height: 1.6; }

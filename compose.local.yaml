@@ -1,0 +1,19 @@
+# Explicit local development: HTTP cookies, loopback ports, independent volume/project.
+# The local worker publishes in-app notices; each external channel stays disabled.
+# Local sign-in OTP returns a development code to the localhost app and sends no email.
+name: massajoy2-local
+services:
+  api:
+    environment:
+      NODE_ENV: development
+      # Keep the local volume's existing key.bin; never substitute a release key.
+      MERCHANT_CREDENTIAL_VAULT_KEY: ""
+      NOTIFICATION_WORKER_ENABLED: "true"
+      AUTH_EMAIL_LOCAL_OTP: "true"
+      ORDER_EMAIL_ENABLED: "false"
+  migrate:
+    environment:
+      NODE_ENV: development
+  web:
+    ports: !override
+      - 127.0.0.1:8088:80

@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "format": "massajoy-legacy-export",
+  "source": {
+    "system": "Massajoy1.0",
+    "datasetKind": "synthetic",
+    "exportedAt": "2031-01-16T12:00:00Z",
+    "declaredComplete": [
+      "users",
+      "shops",
+      "services",
+      "therapists",
+      "therapistServices",
+      "bookings",
+      "payments"
+    ],
+    "unsupportedDomains": []
+  },
+  "users": [
+    {
+      "id": "9223372036854775806",
+      "role": "MERCHANT",
+      "status": "ACTIVE",
+      "phone": "+12025550100",
+      "email": "merchant@example.invalid"
+    },
+    {
+      "id": "9223372036854775807",
+      "role": "CUSTOMER",
+      "status": "ACTIVE",
+      "phone": "+12025550101",
+      "email": "customer@example.invalid"
+    }
+  ],
+  "shops": [
+    {
+      "id": "101",
+      "ownerId": "9223372036854775806",
+      "name": "Synthetic draft shop",
+      "status": "PENDING",
+      "timezone": "America/Chicago",
+      "phone": "+12025550100",
+      "address": "Synthetic address",
+      "city": "Synthetic city",
+      "state": "AL",
+      "zipCode": "00000",
+      "latitude": 33.5,
+      "longitude": -86.8,
+      "category": "MIXED",
+      "shopType": "APPRENTICE",
+      "businessHours": {
+        "sunday": [],
+        "monday": [
+          {
+            "open": "09:00",
+            "close": "17:00"
+          }
+        ],
+        "tuesday": [
+          {
+            "open": "09:00",
+            "close": "17:00"
+          }
+        ],
+        "wednesday": [
+          {
+            "open": "09:00",
+            "close": "17:00"
+          }
+        ],
+        "thursday": [
+          {
+            "open": "09:00",
+            "close": "17:00"
+          }
+        ],
+        "friday": [
+          {
+            "open": "09:00",
+            "close": "17:00"
+          }
+        ],
+        "saturday": [
+          {
+            "open": "09:00",
+            "close": "17:00"
+          }
+        ]
+      }
+    }
+  ],
+  "services": [
+    {
+      "id": "201",
+      "shopId": "101",
+      "name": "Synthetic service",
+      "category": "MASSAGE",
+      "durationMin": 60,
+      "priceCents": 6000,
+      "isActive": true
+    }
+  ],
+  "therapists": [
+    {
+      "id": "301",
+      "shopId": "101",
+      "name": "Synthetic therapist",
+      "isActive": true
+    }
+  ],
+  "therapistServices": [
+    {
+      "therapistId": "301",
+      "serviceId": "201"
+    }
+  ],
+  "bookings": [
+    {
+      "id": "401",
+      "bookingNo": "SYNTHETIC-BOOKING-1",
+      "kind": "SERVICE",
+      "userId": "9223372036854775807",
+      "shopId": "101",
+      "serviceIds": [
+        "201"
+      ],
+      "therapistIds": [
+        "301"
+      ],
+      "quantity": 1,
+      "participantCount": 1,
+      "bookingDate": "2031-01-15",
+      "timezone": "America/Chicago",
+      "startAt": "2031-01-15T10:00:00-06:00",
+      "endAt": "2031-01-15T11:00:00-06:00",
+      "durationMin": 60,
+      "priceCents": 6000,
+      "discountCents": 1000,
+      "platformFeeCents": 500,
+      "totalCents": 5500,
+      "paidCents": 5500,
+      "refundedCents": 0,
+      "currency": "usd",
+      "status": "COMPLETED",
+      "paymentStatus": "PAID"
+    }
+  ],
+  "payments": [
+    {
+      "id": "synthetic-payment-1",
+      "bookingId": "401",
+      "userId": "9223372036854775807",
+      "shopId": "101",
+      "kind": "PAYMENT",
+      "provider": "stripe",
+      "providerTransactionId": "synthetic-provider-1",
+      "status": "SUCCEEDED",
+      "amountCents": 5500,
+      "currency": "usd",
+      "occurredAt": "2031-01-14T15:00:00Z"
+    }
+  ]
+}

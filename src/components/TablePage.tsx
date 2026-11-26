@@ -1,6 +1,5 @@
 import React from 'react';
-import { Search, Plus, Edit2, Trash2, MoreHorizontal, ChevronDown } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface Column {
@@ -22,122 +21,43 @@ export default function TablePage({ title, columns, data, onAdd, filters, tabs }
   const [activeTab, setActiveTab] = React.useState(tabs?.[0]);
 
   return (
-    <div className="space-y-6">
-      {/* Header & Tabs */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          {tabs && (
-            <div className="flex items-center bg-gray-100 p-1 rounded-lg">
-              {tabs.map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
-                    activeTab === tab ? "bg-[#48a1a1] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-                  )}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-          )}
+    <div className="app-page">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="page-heading">{title}</h1>
+          <p className="page-description">{title === '用户列表' ? '查看用户资料、账号状态与注册信息。' : '查看服务订单、关联门店与订单处理状态。'}</p>
         </div>
-        {onAdd && (
-          <button 
-            onClick={onAdd}
-            className="flex items-center gap-2 bg-[#48a1a1] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#3d8b8b] transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            新增
-          </button>
-        )}
+        {onAdd && <button onClick={onAdd} className="flex min-h-10 items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-[#3d8b8b]"><Plus className="h-4 w-4" />新增用户</button>}
       </div>
-
-      {/* Filters */}
+      {tabs && <div className="flex flex-wrap gap-2">{tabs.map(tab => <button key={tab} onClick={() => setActiveTab(tab)} className={cn('rounded-lg px-4 py-2 text-sm font-medium', activeTab === tab ? 'bg-brand text-white' : 'bg-white text-slate-500')}>{tab}</button>)}</div>}
       {filters && filters.length > 0 && (
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-wrap gap-4 items-end">
-          {filters.map((filter, idx) => (
-            <div key={idx} className="flex-1 min-w-[200px]">
-              <label className="text-xs font-medium text-gray-500 block mb-1.5">{filter.label}</label>
-              <div className="relative">
-                <input 
-                  type={filter.type || 'text'} 
-                  placeholder={filter.placeholder}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-lg pl-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#48a1a1]/20"
-                />
-                <Search className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
-              </div>
-            </div>
+        <div className="surface-panel flex flex-wrap items-end gap-4 p-5 sm:p-6">
+          {filters.map((filter, index) => (
+            <label key={index} className="min-w-0 flex-[1_1_200px] space-y-2 text-sm text-slate-500">
+              <span>{filter.label}</span>
+              <input type={filter.type || 'text'} placeholder={filter.placeholder} className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/15" />
+            </label>
           ))}
-          <button className="bg-[#48a1a1] text-white p-2 rounded-lg hover:bg-[#3d8b8b] transition-colors">
-            <Search className="w-4 h-4" />
-          </button>
+          <button className="flex min-h-10 items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white hover:bg-[#3d8b8b]"><Search className="h-4 w-4" />查询</button>
         </div>
       )}
-
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <section className="surface-panel overflow-hidden" aria-label={title}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6"><h2 className="text-sm font-semibold text-slate-800">{title}</h2><span className="text-xs text-slate-400">共 {data.length} 条记录</span></div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-50/50 border-b border-gray-100">
-                {columns.map(col => (
-                  <th key={col.key} className="px-6 py-4 text-[13px] font-semibold text-gray-600">
-                    {col.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-12 text-center text-gray-400 text-sm">
-                    暂无数据
-                  </td>
-                </tr>
-              ) : (
-                data.map((row, idx) => (
-                  <motion.tr 
-                    key={idx}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.03 }}
-                    className="hover:bg-gray-50/50 transition-colors"
-                  >
-                    {columns.map(col => (
-                      <td key={col.key} className="px-6 py-4 text-sm text-gray-600">
-                        {col.render ? col.render(row[col.key], row) : row[col.key]}
-                      </td>
-                    ))}
-                  </motion.tr>
-                ))
-              )}
+          <table className="min-w-[850px] text-left">
+            <thead><tr className="border-b border-slate-100">{columns.map(column => <th key={column.key}>{column.label}</th>)}</tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {data.length === 0 ? <tr><td colSpan={columns.length} className="py-16 text-center text-slate-400">暂无数据</td></tr> : data.map((row, index) => (
+                <tr key={row.id ?? index} className="text-slate-600 transition-colors hover:bg-slate-50/70">{columns.map(column => <td key={column.key}>{column.render ? column.render(row[column.key], row) : row[column.key]}</td>)}</tr>
+              ))}
             </tbody>
           </table>
         </div>
-
-        {/* Pagination placeholder */}
-        <div className="p-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-          <div>共 {data.length} 条</div>
-          <div className="flex items-center gap-4">
-             <div className="flex items-center gap-2">
-                <span>15条/页</span>
-                <ChevronDown className="w-3.5 h-3.5" />
-             </div>
-             <div className="flex items-center gap-1">
-                <button className="px-2 py-1 rounded bg-gray-50 hover:bg-gray-100">&lt;</button>
-                <button className="px-2 py-1 rounded bg-[#48a1a1] text-white">1</button>
-                <button className="px-2 py-1 rounded bg-gray-50 hover:bg-gray-100">&gt;</button>
-             </div>
-             <div className="flex items-center gap-1">
-                <span>前往</span>
-                <input type="text" className="w-8 border border-gray-100 rounded text-center py-0.5" defaultValue="1" />
-                <span>页</span>
-             </div>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 px-5 py-4 text-sm text-slate-500 sm:px-6">
+          <span>共 {data.length} 条 · 15 条 / 页</span>
+          <div className="flex items-center gap-2"><button disabled aria-label="上一页" className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-300"><ChevronLeft className="h-4 w-4" /></button><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white">1</span><button disabled aria-label="下一页" className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-300"><ChevronRight className="h-4 w-4" /></button></div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -1,0 +1,38 @@
+{
+    "name": "Massajoy",
+    "short_name": "Massajoy",
+    "lang": "en",
+    "id": ".",
+    "scope": ".",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#F5F7FA",
+    "theme_color": "#287C7C",
+    "description": "Explore local massage and wellness shops, view services and prices, and manage your Massajoy appointments.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

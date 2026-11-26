@@ -1,0 +1,42 @@
+{
+  email {$TLS_EMAIL:ops@example.invalid}
+}
+{$SITE_ADDRESS} {
+  encode zstd gzip
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    X-Frame-Options DENY
+    Permissions-Policy "camera=(), microphone=(), geolocation=(self)"
+    -Server
+  }
+  handle /api/* {
+    header Cache-Control no-store
+    reverse_proxy api:8002
+  }
+  handle_path /service-gallery/* {
+    header Cache-Control "public, max-age=86400"
+    root * /srv/service-gallery
+    file_server
+  }
+  redir /admin /admin/ 308
+  handle_path /admin/* {
+    header Cache-Control no-cache
+    root * /srv/admin
+    try_files {path} /index.html
+    file_server
+  }
+  redir /merchant /merchant/ 308
+  handle_path /merchant/* {
+    header Cache-Control no-cache
+    root * /srv/merchant
+    try_files {path} /index.html
+    file_server
+  }
+  handle {
+    header Cache-Control no-cache
+    root * /srv/customer
+    try_files {path} /index.html
+    file_server
+  }
+}

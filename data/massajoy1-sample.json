@@ -1,0 +1,531 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "name": "Massajoy1.0",
+    "capturedAt": "2026-10-23T22:49:42Z",
+    "mode": "sanitized-sample",
+    "notes": [
+      "2026-10-24 经已登录的 Massajoy1.0 页面只读抽样；仅用于 Massajoy2.0 本机测试，不代表完整迁移或实时同步。",
+      "包含 5 家门店、6 个州和 Alabama 州下 3 个城市。保留门店公开名称、短链、地址、启用状态与创建时间；未采集电话、邮箱、账号、密码或线上凭据。",
+      "门店营业状态、时区、营业时间、图片与功能开关未采集；空白、关闭开关及未设置的时段仅用于本地编辑初始化，不代表线上真实配置。",
+      "用户样本 3 条，仅保留启用状态和注册日期；姓名、邮箱及 ID 均替换为本地测试值，example.test 为测试域名。",
+      "服务订单样本 3 条，仅保留观察到的待确认状态；订单号、ID、用户和金额为测试值，0 不代表实际交易金额；未采集日期与门店关联。",
+      "抽样时通用优惠券、商家优惠券及礼品卡列表均显示暂无数据，因此未编造导入记录；可在本地优惠券页新建测试。",
+      "财务、支付、提现及线上统计未采集；礼品卡、技师、管理员与商家账号页面仍含明确标注的前端演示流程。"
+    ]
+  },
+  "stores": [
+    {
+      "id": 3763,
+      "shortName": "NewSoothingDaySpa",
+      "name": "New Soothing Day Spa",
+      "address": "451 New Britain Ave, Newington, CT 06111, USA",
+      "createdDate": "2026-10-20 08:55:34",
+      "logo": "",
+      "logoUrl": "",
+      "bannerUrl": "",
+      "subtitle": "",
+      "phones": [],
+      "emails": [],
+      "sysAccount": "",
+      "timezone": "",
+      "businessHours": {
+        "周一": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周二": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周三": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周四": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周五": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周六": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周日": {
+          "open": false,
+          "start": "",
+          "end": ""
+        }
+      },
+      "tags": [],
+      "features": {
+        "onlineBooking": false,
+        "onlinePayment": false,
+        "reviews": false,
+        "membershipCard": false
+      },
+      "dataStatus": "正常",
+      "businessStatus": "",
+      "about": "",
+      "gallery": [],
+      "videoUrl": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "mapShareUrl": "",
+      "mapEmbedIframe": ""
+    },
+    {
+      "id": 3762,
+      "shortName": "FairhavenHealingSpa",
+      "name": "Fairhaven Healing Spa",
+      "address": "162 Huttleston Ave, Fairhaven, MA 02719",
+      "createdDate": "2026-10-20 07:59:02",
+      "logo": "",
+      "logoUrl": "",
+      "bannerUrl": "",
+      "subtitle": "",
+      "phones": [],
+      "emails": [],
+      "sysAccount": "",
+      "timezone": "",
+      "businessHours": {
+        "周一": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周二": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周三": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周四": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周五": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周六": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周日": {
+          "open": false,
+          "start": "",
+          "end": ""
+        }
+      },
+      "tags": [],
+      "features": {
+        "onlineBooking": false,
+        "onlinePayment": false,
+        "reviews": false,
+        "membershipCard": false
+      },
+      "dataStatus": "正常",
+      "businessStatus": "",
+      "about": "",
+      "gallery": [],
+      "videoUrl": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "mapShareUrl": "",
+      "mapEmbedIframe": ""
+    },
+    {
+      "id": 3748,
+      "shortName": "QMassage",
+      "name": "Q Massage",
+      "address": "5104 S108th St, Omaha, NE68137",
+      "createdDate": "2026-10-16 11:13:31",
+      "logo": "",
+      "logoUrl": "",
+      "bannerUrl": "",
+      "subtitle": "",
+      "phones": [],
+      "emails": [],
+      "sysAccount": "",
+      "timezone": "",
+      "businessHours": {
+        "周一": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周二": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周三": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周四": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周五": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周六": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周日": {
+          "open": false,
+          "start": "",
+          "end": ""
+        }
+      },
+      "tags": [],
+      "features": {
+        "onlineBooking": false,
+        "onlinePayment": false,
+        "reviews": false,
+        "membershipCard": false
+      },
+      "dataStatus": "正常",
+      "businessStatus": "",
+      "about": "",
+      "gallery": [],
+      "videoUrl": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "mapShareUrl": "",
+      "mapEmbedIframe": ""
+    },
+    {
+      "id": 3746,
+      "shortName": "SunshineSpa",
+      "name": "Sunshine Spa",
+      "address": "87 Main St, Easthampton, MA 01027",
+      "createdDate": "2026-10-16 06:34:55",
+      "logo": "",
+      "logoUrl": "",
+      "bannerUrl": "",
+      "subtitle": "",
+      "phones": [],
+      "emails": [],
+      "sysAccount": "",
+      "timezone": "",
+      "businessHours": {
+        "周一": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周二": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周三": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周四": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周五": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周六": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周日": {
+          "open": false,
+          "start": "",
+          "end": ""
+        }
+      },
+      "tags": [],
+      "features": {
+        "onlineBooking": false,
+        "onlinePayment": false,
+        "reviews": false,
+        "membershipCard": false
+      },
+      "dataStatus": "正常",
+      "businessStatus": "",
+      "about": "",
+      "gallery": [],
+      "videoUrl": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "mapShareUrl": "",
+      "mapEmbedIframe": ""
+    },
+    {
+      "id": 3740,
+      "shortName": "AngelFootMassage",
+      "name": "Angel Foot Massage",
+      "address": "13507 Meridian E Ste d, Puyallup, WA 98373",
+      "createdDate": "2026-10-15 06:28:20",
+      "logo": "",
+      "logoUrl": "",
+      "bannerUrl": "",
+      "subtitle": "",
+      "phones": [],
+      "emails": [],
+      "sysAccount": "",
+      "timezone": "",
+      "businessHours": {
+        "周一": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周二": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周三": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周四": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周五": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周六": {
+          "open": false,
+          "start": "",
+          "end": ""
+        },
+        "周日": {
+          "open": false,
+          "start": "",
+          "end": ""
+        }
+      },
+      "tags": [],
+      "features": {
+        "onlineBooking": false,
+        "onlinePayment": false,
+        "reviews": false,
+        "membershipCard": false
+      },
+      "dataStatus": "正常",
+      "businessStatus": "",
+      "about": "",
+      "gallery": [],
+      "videoUrl": "",
+      "city": "",
+      "state": "",
+      "zipCode": "",
+      "mapShareUrl": "",
+      "mapEmbedIframe": ""
+    }
+  ],
+  "regions": [
+    {
+      "id": 54,
+      "kind": "state",
+      "abbr": "AL",
+      "english": "Alabama",
+      "chinese": "阿拉巴马州",
+      "status": "启用",
+      "updatedTime": "2025-05-28 14:43:49",
+      "sort": 100,
+      "parentId": null
+    },
+    {
+      "id": 55,
+      "kind": "state",
+      "abbr": "AK",
+      "english": "Alaska",
+      "chinese": "阿拉斯加州",
+      "status": "启用",
+      "updatedTime": "2025-05-28 14:43:49",
+      "sort": 100,
+      "parentId": null
+    },
+    {
+      "id": 56,
+      "kind": "state",
+      "abbr": "AZ",
+      "english": "Arizona",
+      "chinese": "亚利桑那州",
+      "status": "启用",
+      "updatedTime": "2025-05-28 14:43:49",
+      "sort": 100,
+      "parentId": null
+    },
+    {
+      "id": 59,
+      "kind": "state",
+      "abbr": "AR",
+      "english": "Arkansas",
+      "chinese": "阿肯色州",
+      "status": "启用",
+      "updatedTime": "2025-05-28 14:43:49",
+      "sort": 100,
+      "parentId": null
+    },
+    {
+      "id": 60,
+      "kind": "state",
+      "abbr": "CA",
+      "english": "California",
+      "chinese": "加利福尼亚",
+      "status": "启用",
+      "updatedTime": "2025-05-28 14:43:49",
+      "sort": 100,
+      "parentId": null
+    },
+    {
+      "id": 61,
+      "kind": "state",
+      "abbr": "CO",
+      "english": "Colorado",
+      "chinese": "科罗拉多",
+      "status": "启用",
+      "updatedTime": "2025-05-28 14:43:49",
+      "sort": 100,
+      "parentId": null
+    },
+    {
+      "id": 3763,
+      "kind": "city",
+      "parentId": 54,
+      "stateId": 54,
+      "abbr": "",
+      "english": "Auburn",
+      "chinese": "奥本",
+      "status": "启用",
+      "updatedTime": "2025-05-28 14:43:49",
+      "sort": 100,
+      "zipCode": ""
+    },
+    {
+      "id": 3764,
+      "kind": "city",
+      "parentId": 54,
+      "stateId": 54,
+      "abbr": "",
+      "english": "Birmingham",
+      "chinese": "伯明翰",
+      "status": "启用",
+      "updatedTime": "2025-05-28 14:43:49",
+      "sort": 100,
+      "zipCode": ""
+    },
+    {
+      "id": 3765,
+      "kind": "city",
+      "parentId": 54,
+      "stateId": 54,
+      "abbr": "",
+      "english": "Dothan",
+      "chinese": "多森",
+      "status": "启用",
+      "updatedTime": "2025-05-28 14:43:49",
+      "sort": 100,
+      "zipCode": ""
+    }
+  ],
+  "coupons": [],
+  "users": [
+    {
+      "id": 1,
+      "username": "样本用户1",
+      "email": "sample-user-1@example.test",
+      "status": "启用",
+      "regDate": "2026-10-23"
+    },
+    {
+      "id": 2,
+      "username": "样本用户2",
+      "email": "sample-user-2@example.test",
+      "status": "启用",
+      "regDate": "2026-10-23"
+    },
+    {
+      "id": 3,
+      "username": "样本用户3",
+      "email": "sample-user-3@example.test",
+      "status": "启用",
+      "regDate": "2026-10-23"
+    }
+  ],
+  "serviceOrders": [
+    {
+      "id": 1,
+      "orderNo": "TEST-MJ2-001",
+      "amount": 0,
+      "actualPay": 0,
+      "user": "订单样本用户1",
+      "store": "未抽取门店关联",
+      "status": "待确认",
+      "date": ""
+    },
+    {
+      "id": 2,
+      "orderNo": "TEST-MJ2-002",
+      "amount": 0,
+      "actualPay": 0,
+      "user": "订单样本用户2",
+      "store": "未抽取门店关联",
+      "status": "待确认",
+      "date": ""
+    },
+    {
+      "id": 3,
+      "orderNo": "TEST-MJ2-003",
+      "amount": 0,
+      "actualPay": 0,
+      "user": "订单样本用户3",
+      "store": "未抽取门店关联",
+      "status": "待确认",
+      "date": ""
+    }
+  ],
+  "dashboard": {
+    "statisticsMode": "local-resource-counts",
+    "financialDataImported": false
+  }
+}

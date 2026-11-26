@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 export interface BranchInfo {
-  id: number;
+  id: string | number;
   name: string;
   address: string;
   phone: string;
@@ -9,19 +9,20 @@ export interface BranchInfo {
 
 class ShopStore {
   private listeners = new Set<() => void>();
-  private _currentStoreId: number | null = 3246; // ArivaSpa ID by default
-  private _hasBranches: boolean = true; // Defaults to true
-  private _branchList: BranchInfo[] = [
-    { id: 324601, name: 'Ariva Spa - Littleton Branch', address: '6728 W Coal Mine Ave A110, Littleton, CO', phone: '303-475-1111' },
-    { id: 324602, name: 'Ariva Spa - Highlands Ranch Branch', address: '9362 S Colorado Blvd, Highlands Ranch, CO', phone: '303-475-2222' }
-  ];
+  // Store selection is a UI filter. The server determines permitted stores.
+  private _currentStoreId: string | number | null = null;
+  private _hasBranches: boolean = false;
+  private _branchList: BranchInfo[] = [];
 
-  get currentStoreId(): number | null {
+  get currentStoreId(): string | number | null {
     return this._currentStoreId;
   }
 
-  set currentStoreId(id: number | null) {
+  set currentStoreId(id: string | number | null) {
+    if (this._currentStoreId === id) return;
     this._currentStoreId = id;
+    this._hasBranches = false;
+    this._branchList = [];
     this.notify();
   }
 
@@ -73,7 +74,7 @@ export function useShopStore() {
 
   return {
     currentStoreId: storeId,
-    setCurrentStoreId: (id: number | null) => {
+    setCurrentStoreId: (id: string | number | null) => {
       shopStore.currentStoreId = id;
     },
     hasBranches,
