@@ -47,6 +47,8 @@ jobs:
           MYSQL_SERVICE_ID: ${{ job.services.mysql.id }}
         run: |
           docker exec -i -e MYSQL_PWD=ci-ephemeral-only "$MYSQL_SERVICE_ID" mysql -uroot <<'SQL'
+          -- Allow the isolated CI test user to create fault-injection triggers within its schema grant.
+          SET GLOBAL log_bin_trust_function_creators = ON;
           GRANT ALL PRIVILEGES ON `mj2\_test\_%`.* TO 'massajoy'@'%';
           SQL
       - name: Verify management password rotation against disposable MySQL schemas

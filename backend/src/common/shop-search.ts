@@ -1,0 +1,1 @@
+export const SHOP_SEARCH_MAX_LENGTH = 512;

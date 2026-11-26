@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { shopFeatures } from '../../common/shop-features';
 import { publicShopIds, publicShopWhere, PUBLIC_SHOP_SQL } from '../../common/shop-eligibility';
 import { publicShopProfile, publicServiceView, safePublicMediaUrl } from '../../common/shop-public-profile';
-import { canonicalShopLink, normalizeShopShortName } from '../../common/shop-alias';
+import { canonicalShopLink, findLegacyShopAlias, normalizeShopShortName } from '../../common/shop-alias';
 import { numericId } from '../payment/money';
 import { shopPaymentPolicy } from '../../common/shop-payment-policy';
 import { hasPublicReservationOptions, publicReservationSource } from '../../common/service-reservation-options';
@@ -70,17 +70,12 @@ export class ShopsService {
 
   async resolve(input: { shortName?: string; legacyId?: string }) {
     if ((input.shortName === undefined) === (input.legacyId === undefined)) throw new BadRequestException('Provide exactly one shop shortName or legacyId');
-    const kind = input.shortName === undefined ? 'LEGACY_ID' : 'SHORT_NAME';
-    const source = kind === 'LEGACY_ID' ? 'massajoy1' : 'massajoy';
-    const value = kind === 'SHORT_NAME' ? normalizeShopShortName(input.shortName) : numericId(input.legacyId!).toString();
-    let alias = await (this.prisma as any).shopAlias.findUnique({ where: { kind_source_value: { kind, source, value } }, select: { shopId: true, isActive: true } });
-    // The first 1.0 importer used a different alias namespace. Accept its
-    // explicit mapping until all local migration datasets have been backfilled.
-    // A revoked canonical alias remains revoked; never fall through past it.
-    if (!alias && kind === 'LEGACY_ID') alias = await (this.prisma as any).shopAlias.findUnique({
-      where: { kind_source_value: { kind: 'LEGACY_STORE_ID', source: 'Massajoy1.0', value } }, select: { shopId: true, isActive: true },
-    });
-    // Only an explicit alias can resolve a legacy numeric ID. No ID fallback.
+    const alias = input.shortName === undefined
+      ? await findLegacyShopAlias(this.prisma, numericId(input.legacyId!).toString())
+      : await this.prisma.shopAlias.findUnique({
+        where: { kind_source_value: { kind: 'SHORT_NAME', source: 'massajoy', value: normalizeShopShortName(input.shortName) } },
+        select: { shopId: true, isActive: true },
+      });
     if (!alias?.isActive) throw new NotFoundException('Shop unavailable');
     return this.getShop(String(alias.shopId));
   }

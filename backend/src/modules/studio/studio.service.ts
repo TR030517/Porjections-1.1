@@ -16,7 +16,8 @@ import { bookingAddOnsView } from '../../common/booking-addons-view';
 import { bookingContactView } from '../../common/booking-contact';
 import { historicalBookingService } from '../../common/booking-service-snapshot';
 import { readDurationKind, serviceDurationMeta, itemDurationMeta, bookingDurationMeta } from '../../common/service-duration';
-import { pageNumber, studioFilters } from './query';
+import { pageNumber, studioFilters, studioStoreSearch } from './query';
+import { SHOP_SEARCH_MAX_LENGTH } from '../../common/shop-search';
 import { hasServiceVariants, serviceDisplaySource } from '../../common/service-reservation-options';
 import { ensureBaseServiceEdit, ensureServiceConfiguration, ensureTherapistConfiguration, ensureShopConfiguration } from '../reservations/configuration-guard';
 import { canonicalShopLink, normalizeShopShortName, reserveShopAlias } from '../../common/shop-alias';
@@ -90,11 +91,11 @@ export class StudioService {
     if (query.parentId && resource === 'regions') where.parentId = v.id(query.parentId);
     const filters = studioFilters(resource, query);
     if (Object.keys(filters).length) where.AND = [filters];
+    if (resource === 'stores') return where;
     const key = v.text(query.search ?? query.keyword ?? query.q, 'search', 100);
     if (key) {
       const field = resource === 'regions' ? 'english' : ['coupons','content','gift-cards','banners'].includes(resource) ? 'title' : ['service-orders','after-sales'].includes(resource) ? 'bookingNo' : resource === 'gift-card-orders' ? 'orderNo' : 'name';
       if (['users','admins','merchants'].includes(resource)) where.AND = [...(where.AND ?? []), { OR: ['name','loginName','email','phone'].map(name => ({ [name]: { contains: key } })) }];
-      else if (resource === 'stores') where.AND = [...(where.AND ?? []), { OR: ['name','shortName'].map(name => ({ [name]: { contains: key } })) }];
       else if (!['settings','withdrawals'].includes(resource)) where[field] = { contains: key };
     }
     return where;
@@ -143,7 +144,12 @@ export class StudioService {
     const c = this.config(resource);
     const page = pageNumber(query.page, 1, 100000);
     const pageSize = pageNumber(query.pageSize, 25, 100);
-    const where = this.where(resource, actor, query); const model = (this.prisma as any)[c.model];
+    const where = this.where(resource, actor, query);
+    if (resource === 'stores') {
+      const key = v.text(query.search ?? query.keyword ?? query.q, 'search', SHOP_SEARCH_MAX_LENGTH);
+      if (key) where.AND = [...(where.AND ?? []), await studioStoreSearch(key, this.prisma)];
+    }
+    const model = (this.prisma as any)[c.model];
     const [rows, total] = await Promise.all([model.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { id: 'desc' }, ...(c.include ? { include: c.include } : {}), ...(c.select ? { select: c.select } : {}) }), model.count({ where })]);
     return { items: rows.map((row: any) => this.map(resource, row)), total, page, pageSize };
   }

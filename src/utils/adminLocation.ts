@@ -1,6 +1,7 @@
 import type { ResourceQuery } from '../api/resources';
 import { auditQuery, type AuditFilters } from '../api/auditLogs';
 import type { ViewId } from '../types';
+import { SHOP_SEARCH_MAX_LENGTH } from '../../backend/src/common/shop-search';
 
 export interface AdminLocation { view: ViewId; query: ResourceQuery; }
 export const ADMIN_ALL_STORES_SCOPE = 'ALL';
@@ -75,7 +76,9 @@ export function restoreAdminLocation(identity: string, browser: Pick<Window, 'lo
   const location = previous && previous !== identity || foreignEntry ? { view: 'dashboard' as const, query: {} } : readAdminLocation(browser.location.search, allowed);
   try {
     const saved = JSON.parse(browser.sessionStorage.getItem(privateQueryKey) ?? 'null');
-    if (saved?.identity === identity && saved.route === adminLocationSearch(location) && typeof saved.search === 'string') location.query.search = saved.search.slice(0, 100);
+    if (saved?.identity === identity && saved.route === adminLocationSearch(location) && typeof saved.search === 'string') {
+      location.query.search = saved.search.slice(0, location.view === 'store-list' ? SHOP_SEARCH_MAX_LENGTH : 100);
+    }
   } catch { /* Unavailable or malformed local state must not prevent navigation. */ }
   writeAdminLocation(location, identity, browser, true);
   return location;
@@ -83,7 +86,10 @@ export function restoreAdminLocation(identity: string, browser: Pick<Window, 'lo
 export function writeAdminLocation(location: AdminLocation, identity: string, browser: Pick<Window, 'location' | 'history'> & Partial<Pick<Window, 'sessionStorage'>>, replace = false) {
   const search = adminLocationSearch(location);
   try {
-    if (typeof location.query.search === 'string' && location.query.search) browser.sessionStorage?.setItem(privateQueryKey, JSON.stringify({ identity, route: search, search: location.query.search.slice(0, 100) }));
+    if (typeof location.query.search === 'string' && location.query.search) {
+      const limit = location.view === 'store-list' ? SHOP_SEARCH_MAX_LENGTH : 100;
+      browser.sessionStorage?.setItem(privateQueryKey, JSON.stringify({ identity, route: search, search: location.query.search.slice(0, limit) }));
+    }
     else browser.sessionStorage?.removeItem(privateQueryKey);
   } catch { /* Shareable structural state still works without session storage. */ }
   const url = browser.location.pathname + search;

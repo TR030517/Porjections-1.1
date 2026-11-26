@@ -22,6 +22,7 @@ import { EMPTY_BUSINESS_LIFECYCLE, useBusinessScope } from './store/businessScop
 import type { ReadinessAction, ReadinessSection } from '../api/shopReadiness';
 import { readinessSelection } from './store/readinessModel';
 import { publicShopProfile } from '../../backend/src/common/shop-public-profile';
+import { SHOP_SEARCH_MAX_LENGTH } from '../../backend/src/common/shop-search';
 import { locationPage, locationPageSize } from '../utils/adminLocation';
 import { customerSiteOrigin } from '../utils/customerSiteUrl';
 import { storePublicUrl } from './store/StorePublicLink';
@@ -29,7 +30,7 @@ import './store/storeStudio.css';
 
 function initialFilters(query?: ResourceQuery) {
   return {
-    search: typeof query?.search === 'string' ? query.search.trim().slice(0, 100) : '',
+    search: typeof query?.search === 'string' ? query.search.trim().slice(0, SHOP_SEARCH_MAX_LENGTH) : '',
     status: typeof query?.status === 'string' && Object.hasOwn(STATUS, query.status) ? query.status : '',
   };
 }
@@ -198,7 +199,7 @@ export default function StoreManagement({ openStoreId, onStoreOpened, initialQue
   return <div className="app-page store-directory">
     <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="page-heading">门店管理</h1><p className="page-description">让每家门店保持自己的样子。管理品牌展示、营业设置与门店业务。</p></div><div className="flex flex-wrap gap-3">{user?.role==='ADMIN'&&<button type="button" onClick={()=>setCopySource({})} className="store-secondary-button"><Copy className="h-4 w-4"/>{pendingCopy?'核对上次复制':'复制门店设置'}</button>}{user?.role==='ADMIN'&&<button type="button" disabled={loading&&!intakePending} onClick={()=>setShowIntake(true)} className="store-secondary-button"><Upload className="h-4 w-4" />{intakePending?'导入结果待核对':'导入资料'}</button>}{!isStoreManager&&<button type="button" onClick={()=>{setNotice('');setWorkspaceSection('basic');setWorkspaceBusinessTarget(undefined);setEditing(null);}} className="store-primary-button"><Plus className="h-4 w-4" />新增门店</button>}</div></div>
     <form onSubmit={event=>{event.preventDefault();setSearch(keyword.trim());setStatus(statusDraft);setPage(1);setReload(value=>value+1);}} className="surface-panel flex flex-wrap items-end gap-3 p-5">
-      <label className="min-w-0 flex-[1_1_260px] space-y-2 text-sm text-slate-500"><span>查找门店</span><span className="relative block"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" /><input type="search" maxLength={100} value={keyword} onChange={event=>setKeyword(event.target.value)} placeholder="门店名称或短链" className="store-control pl-9!" /></span></label>
+      <label className="min-w-0 flex-[1_1_260px] space-y-2 text-sm text-slate-500"><span>查找门店</span><span className="relative block"><Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" /><input type="search" maxLength={SHOP_SEARCH_MAX_LENGTH} value={keyword} onChange={event=>setKeyword(event.target.value)} placeholder="门店名称、短链或网址" className="store-control pl-9!" /></span></label>
       <label className="min-w-36 flex-[0_1_180px] space-y-2 text-sm text-slate-500"><span>发布状态</span><select value={statusDraft} onChange={event=>setStatusDraft(event.target.value)} className="store-control"><option value="">全部状态</option>{Object.entries(STATUS).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
       <button className="store-primary-button">查询</button><button type="button" onClick={()=>{setKeyword('');setSearch('');setStatusDraft('');setStatus('');setPage(1);setReload(value=>value+1);}} className="store-secondary-button">重置</button><button type="button" disabled={loading} onClick={()=>setReload(value=>value+1)} className="store-icon-button" aria-label="刷新门店列表"><RefreshCw className={'h-4 w-4 '+(loading?'animate-spin':'')} /></button>
     </form>

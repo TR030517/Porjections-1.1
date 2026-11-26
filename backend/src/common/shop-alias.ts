@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import type { PrismaClient } from '@prisma/client';
 
 const RESERVED = new Set(['admin', 'merchant', 'api', 'auth', 'login', 'signin', 'signup', 'register', 'logout', 's', 'store', 'shops', 'shop', 'h5', 'assets', 'icons', 'canvaskit', 'pages', 'static', 'health', 'favicon', 'robots', 'sitemap', 'payments', 'bookings', 'account', 'profile', 'home', 'search', 'about', 'support', 'feedback', 'terms', 'privacy']);
 export function normalizeShopShortName(value: unknown): string {
@@ -11,6 +12,17 @@ export function normalizeShopShortName(value: unknown): string {
 export function canonicalShopLink(shortName: unknown) {
   try { const canonicalShortName = normalizeShopShortName(shortName); return { canonicalShortName, canonicalPath: '/s/' + canonicalShortName }; }
   catch { return { canonicalShortName: null, canonicalPath: null }; }
+}
+
+export async function findLegacyShopAlias(db: Pick<PrismaClient, 'shopAlias'>, value: string) {
+  const select = { shopId: true, isActive: true } as const;
+  const current = await db.shopAlias.findUnique({
+    where: { kind_source_value: { kind: 'LEGACY_ID', source: 'massajoy1', value } }, select,
+  });
+  // A revoked mapping still takes precedence over the first import's alias.
+  return current ?? db.shopAlias.findUnique({
+    where: { kind_source_value: { kind: 'LEGACY_STORE_ID', source: 'Massajoy1.0', value } }, select,
+  });
 }
 
 /** Called in the same Studio transaction as the Shop write. Never delete old
