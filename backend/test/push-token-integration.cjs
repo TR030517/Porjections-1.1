@@ -11,6 +11,9 @@ process.env.DATABASE_URL = target;
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = randomBytes(48).toString('base64url');
 process.env.PAYMENT_PROVIDER = 'disabled';
+// The unconfigured-delivery scenario checks both notification switches.
+process.env.NOTIFICATION_WORKER_ENABLED = 'false';
+process.env.ORDER_EMAIL_ENABLED = 'false';
 for (const key of ['FCM_ENABLED','FCM_SERVICE_ACCOUNT','FIREBASE_SERVICE_ACCOUNT','FIREBASE_SERVICE_ACCOUNT_PATH','TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY']) delete process.env[key];
 process.env.TS_NODE_COMPILER_OPTIONS = JSON.stringify({ esModuleInterop: true });
 require('ts-node/register/transpile-only');
